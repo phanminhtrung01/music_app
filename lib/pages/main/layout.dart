@@ -1,24 +1,22 @@
 import 'package:carousel_slider/carousel_slider.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:flutter/material.dart';
-import 'package:music_app/pages/ai.dart';
-import 'package:music_app/pages/home.dart';
-import 'package:music_app/pages/music.dart';
-import 'package:music_app/pages/user.dart';
-
-enum SingingCharacter {
-  all,
-  song,
-  album,
-  actor,
-  actorOfAlbum,
-  type,
-  listPlay,
-}
+import 'package:music_app/pages/main/ai.dart';
+import 'package:music_app/pages/main/home.dart';
+import 'package:music_app/pages/main/music.dart';
+import 'package:music_app/pages/main/user.dart';
+import 'package:music_app/pages/play/play_home.dart';
+import 'package:music_app/repository/audio_player.dart';
+import 'package:music_app/repository/song_repository.dart';
 
 class LayoutPage extends StatefulWidget {
+  final SongRepository? songRepository;
+  final AudioPlayerManager? audioPlayerManager;
+
   const LayoutPage({
     Key? key,
+    this.songRepository,
+    required this.audioPlayerManager,
   }) : super(key: key);
 
   @override
@@ -27,19 +25,19 @@ class LayoutPage extends StatefulWidget {
 
 class _LayoutPageState extends State<LayoutPage>
     with SingleTickerProviderStateMixin {
-  late final List<RadioModel> _listRadio =
-      List<RadioModel>.empty(growable: true);
+  final double _radiusBorder = 25.0;
 
   late AnimationController _animationController;
   late CarouselController _carouselController;
-  final double _radiusBorder = 25.0;
 
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   final GlobalKey<CurvedNavigationBarState> _bottomNavigationKey = GlobalKey();
 
   late int indexPage = 0;
   late int indexChoose = 0;
-  bool check = false;
+  late bool checkSearch = false;
+
+  AudioPlayerManager get _audioPlayerManager => widget.audioPlayerManager!;
 
   @override
   void initState() {
@@ -47,12 +45,9 @@ class _LayoutPageState extends State<LayoutPage>
     super.initState();
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 250),
+      duration: const Duration(milliseconds: 350),
     );
     _carouselController = CarouselController();
-    for (var element in SingingCharacter.values) {
-      _listRadio.add(RadioModel(false, element.name));
-    }
   }
 
   @override
@@ -64,138 +59,245 @@ class _LayoutPageState extends State<LayoutPage>
 
   @override
   Widget build(BuildContext context) {
+    final double height = MediaQuery.of(context).size.height;
+
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: Colors.white12,
       body: SafeArea(
+        bottom: false,
         key: _bottomNavigationKey,
-        child: Stack(
-          children: [
-            !check ? buildLayoutMain() : buildLayoutSearch(),
-          ],
+        child: ValueListenableBuilder(
+          valueListenable: _audioPlayerManager.isPlayOrNotPlayNotifier,
+          builder: (_, value, __) {
+            return Stack(
+              children: [
+                !checkSearch
+                    ? buildLayoutMain(height,
+                        _audioPlayerManager.isPlayOrNotPlayNotifier.value)
+                    : buildLayoutSearch(),
+                value
+                    ? Align(
+                        alignment: Alignment.bottomCenter,
+                        child: PlayerHome(
+                          audioPlayerManager: _audioPlayerManager,
+                        ),
+                      )
+                    : Container()
+              ],
+            );
+          },
         ),
       ),
       drawer: Drawer(
-        child: Container(
-          color: Colors.redAccent,
-          height: 30,
-          width: 40,
-        ),
-      ),
-      bottomNavigationBar: Container(
-        height: 110,
-        decoration: const ShapeDecoration(
-          color: Colors.white12,
-          shape: OutlineInputBorder(
-            borderSide: BorderSide(width: 1.0),
-            // borderRadius: BorderRadius.only(
-            //   bottomLeft: Radius.circular(_radiusBorder),
-            //   bottomRight: Radius.circular(_radiusBorder),
-            // ),
-          ),
-        ),
-        child: buildBottomNavigationBar(),
-      ),
-    );
-  }
-
-  PreferredSizeWidget buildAppBar() {
-    return AppBar(
-      title: Container(
-        padding: const EdgeInsets.only(top: 5, right: 10, left: 10),
-        child: ElevatedButton(
-          onPressed: () => {
-            setState(() => {check ? check = false : check = true}),
-            // Navigator.push(
-            //   context,
-            //   PageRouteBuilder(
-            //     opaque: false,
-            //     pageBuilder: (_, __, ___) => const NavigationSearchPage(),
-            //   ),
-            // )
-            // Navigator.pushNamed(context, '$SearchPage')
-          },
-          style: ButtonStyle(
-              padding: MaterialStateProperty.all(const EdgeInsets.all(0)),
-              backgroundColor: MaterialStateProperty.all(
-                Colors.transparent,
-              ),
-              shape: MaterialStateProperty.all(RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(_radiusBorder)))
-              // overlayColor: MaterialStateProperty.all(Colors.transparent),
-              ),
-          child: Container(
-            // padding: const EdgeInsets.all(10),
-            decoration: BoxDecoration(
-                color: Colors.white12,
-                borderRadius: BorderRadius.all(Radius.circular(_radiusBorder))),
-            child: Row(
-              children: [
-                Expanded(
-                  child: IconButton(
-                    onPressed: () => {},
-                    splashRadius: _radiusBorder,
-                    icon: const Icon(Icons.menu),
-                  ),
+        backgroundColor: Colors.black45,
+        child: ListView(
+          padding: const EdgeInsets.only(right: 10),
+          children: [
+            SizedBox(
+              height: 200,
+              child: Container(
+                alignment: Alignment.bottomLeft,
+                padding: const EdgeInsets.only(left: 20, bottom: 20),
+                child: CircleAvatar(
+                  radius: 40,
+                  backgroundImage: const Image(
+                          image: NetworkImage(
+                              "https://dntech.vn/uploads/details/2021/11/images/ai%20l%C3%A0%20g%C3%AC.jpg"))
+                      .image,
                 ),
-                Flexible(
-                    flex: 6,
-                    child: TextField(
-                      obscureText: true,
-                      cursorColor: Colors.lightBlueAccent,
-                      cursorWidth: 3,
-                      showCursor: true,
-                      style: const TextStyle(color: Colors.white, fontSize: 18),
-                      decoration: InputDecoration(
-                          isCollapsed: true,
-                          focusedBorder: InputBorder.none,
-                          contentPadding: const EdgeInsets.all(15),
-                          suffixIcon: IconButton(
-                            onPressed: () => {},
-                            icon: const Icon(Icons.search),
-                            color: Colors.white,
-                          ),
-                          focusColor: Colors.white,
-                          enabled: false,
-                          hintText: "Enter your song",
-                          hintStyle: const TextStyle(color: Colors.white)),
-                    ))
-              ],
+              ),
             ),
-          ),
+            const SizedBox(height: 20),
+            SizedBox(
+              height: 400,
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                children: [
+                  Container(
+                    padding: const EdgeInsets.only(left: 25),
+                    alignment: Alignment.centerLeft,
+                    height: 50,
+                    width: double.maxFinite,
+                    decoration: const BoxDecoration(
+                        color: Colors.white70,
+                        borderRadius: BorderRadius.only(
+                          topRight: Radius.circular(30),
+                          bottomRight: Radius.circular(30),
+                        )),
+                    child: Wrap(
+                      spacing: 25,
+                      children: const [
+                        Icon(
+                          Icons.home,
+                          color: Colors.white,
+                          size: 30,
+                        ),
+                        Text("Home"),
+                      ],
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () => {},
+                    borderRadius: const BorderRadius.only(
+                      topRight: Radius.circular(30),
+                      bottomRight: Radius.circular(30),
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.only(left: 25),
+                      alignment: Alignment.centerLeft,
+                      height: 50,
+                      width: double.maxFinite,
+                      decoration: const BoxDecoration(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.only(
+                            topRight: Radius.circular(30),
+                            bottomRight: Radius.circular(30),
+                          )),
+                      child: Wrap(
+                        spacing: 25,
+                        children: const [
+                          Icon(
+                            Icons.queue_music,
+                            color: Colors.white,
+                            size: 30,
+                          ),
+                          Text("Queue play music"),
+                        ],
+                      ),
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () => {},
+                    borderRadius: const BorderRadius.only(
+                      topRight: Radius.circular(30),
+                      bottomRight: Radius.circular(30),
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.only(left: 25),
+                      alignment: Alignment.centerLeft,
+                      height: 50,
+                      width: double.maxFinite,
+                      decoration: const BoxDecoration(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.only(
+                            topRight: Radius.circular(30),
+                            bottomRight: Radius.circular(30),
+                          )),
+                      child: Wrap(
+                        spacing: 25,
+                        children: const [
+                          Icon(
+                            Icons.photo_library,
+                            color: Colors.white,
+                            size: 30,
+                          ),
+                          Text("Library scan"),
+                        ],
+                      ),
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () => {},
+                    borderRadius: const BorderRadius.only(
+                      topRight: Radius.circular(30),
+                      bottomRight: Radius.circular(30),
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.only(left: 25),
+                      alignment: Alignment.centerLeft,
+                      height: 50,
+                      width: double.maxFinite,
+                      decoration: const BoxDecoration(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.only(
+                            topRight: Radius.circular(30),
+                            bottomRight: Radius.circular(30),
+                          )),
+                      child: Wrap(
+                        spacing: 25,
+                        children: const [
+                          Icon(
+                            Icons.settings,
+                            color: Colors.white,
+                            size: 30,
+                          ),
+                          Text("Setting"),
+                        ],
+                      ),
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () => {},
+                    borderRadius: const BorderRadius.only(
+                      topRight: Radius.circular(30),
+                      bottomRight: Radius.circular(30),
+                    ),
+                    child: Container(
+                      padding: const EdgeInsets.only(left: 25),
+                      alignment: Alignment.centerLeft,
+                      height: 50,
+                      width: double.maxFinite,
+                      decoration: const BoxDecoration(
+                          color: Colors.transparent,
+                          borderRadius: BorderRadius.only(
+                            topRight: Radius.circular(30),
+                            bottomRight: Radius.circular(30),
+                          )),
+                      child: Wrap(
+                        spacing: 25,
+                        children: const [
+                          Icon(
+                            Icons.info,
+                            color: Colors.white,
+                            size: 30,
+                          ),
+                          Text("About app"),
+                        ],
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            )
+          ],
         ),
       ),
-      titleSpacing: 0,
-      // leading: IconButton(
-      //   onPressed: () => {},
-      //   icon: const Icon(Icons.menu),
-      // ),
-      foregroundColor: Colors.white,
-      backgroundColor: Colors.black,
+      bottomNavigationBar: !checkSearch
+          ? Container(
+              height: 110,
+              decoration: const ShapeDecoration(
+                color: Colors.white12,
+                shape: OutlineInputBorder(
+                  borderSide: BorderSide(width: 1.0),
+                ),
+              ),
+              child: buildBottomNavigationBar(),
+            )
+          : Container(height: 0),
     );
   }
 
-  Widget buildLayoutMain() {
+  Widget buildLayoutMain(double heightContext, bool valueCheckPlay) {
+    const double heightHeader = 80.0;
+    const double heightPadding = 25.0;
+    const double heightBottomNaviBar = 110.0;
+    const double heightPlayerSong = 130.0;
+
     return SingleChildScrollView(
       child: Column(
         children: [
           Container(
+            height: 80,
             color: Colors.white12,
             padding: const EdgeInsets.only(top: 25, right: 10, left: 10),
             child: ElevatedButton(
               onPressed: () => {
                 _animationController.forward(),
                 setState(() => {
-                      check ? check = false : check = true,
+                      checkSearch ? checkSearch = false : checkSearch = true,
                     }),
-                // Navigator.push(
-                //   context,
-                //   PageRouteBuilder(
-                //     opaque: false,
-                //     pageBuilder: (_, __, ___) => const NavigationSearchPage(),
-                //   ),
-                // )
-                // Navigator.pushNamed(context, '$SearchPage')
               },
               style: ButtonStyle(
                 padding: MaterialStateProperty.all(const EdgeInsets.all(0)),
@@ -218,8 +320,9 @@ class _LayoutPageState extends State<LayoutPage>
                           ),
                         ),
                         IconButton(
-                            onPressed: () =>
-                                {_scaffoldKey.currentState!.openDrawer()},
+                            onPressed: () => {
+                                  _scaffoldKey.currentState!.openDrawer(),
+                                },
                             splashRadius: _radiusBorder,
                             icon: const Icon(
                               Icons.menu,
@@ -262,28 +365,37 @@ class _LayoutPageState extends State<LayoutPage>
               ),
             ),
           ),
-          Container(
-            height: 40,
-            color: Colors.white12,
-          ),
           CarouselSlider(
             carouselController: _carouselController,
             options: CarouselOptions(
-                height: 600,
+                height: valueCheckPlay
+                    ? heightContext -
+                        heightHeader -
+                        heightPadding -
+                        heightBottomNaviBar -
+                        heightPlayerSong
+                    : heightContext -
+                        heightHeader -
+                        heightPadding -
+                        heightBottomNaviBar,
                 initialPage: 0,
-                padEnds: false,
                 viewportFraction: 1,
+                padEnds: false,
                 enableInfiniteScroll: false,
                 onPageChanged: (index, __) => {
                       setState(() => {indexPage = index})
                     }),
             items: [
-              buildHomeContain(context),
-              buildMusicContain(context),
+              SingleChildScrollView(
+                child: buildHomeContain(_audioPlayerManager),
+              ),
+              MusicContain(
+                audioPlayerManager: _audioPlayerManager,
+              ),
               buildAlContain(context),
-              buildUserContain(context),
+              buildUserContain(context, false),
             ],
-          )
+          ),
         ],
       ),
     );
@@ -349,17 +461,18 @@ class _LayoutPageState extends State<LayoutPage>
                           ),
                         ),
                         IconButton(
-                            onPressed: () => {
-                                  _animationController.reverse(),
-                                  setState(() {
-                                    check = false;
-                                  }),
-                                },
-                            splashRadius: _radiusBorder,
-                            icon: const Icon(
-                              Icons.arrow_back,
-                              color: Colors.transparent,
-                            )),
+                          onPressed: () => {
+                            _animationController.reverse(),
+                            setState(() {
+                              checkSearch = false;
+                            }),
+                          },
+                          splashRadius: _radiusBorder,
+                          icon: const Icon(
+                            Icons.arrow_back,
+                            color: Colors.transparent,
+                          ),
+                        ),
                       ],
                     ),
                   ),
@@ -393,42 +506,6 @@ class _LayoutPageState extends State<LayoutPage>
               ),
             ),
             const SizedBox(height: 20),
-            Padding(
-              padding: const EdgeInsets.only(left: 20),
-              child: CarouselSlider(
-                options: CarouselOptions(
-                  viewportFraction: 0.5,
-                  height: 50,
-                  initialPage: indexChoose,
-                  padEnds: false,
-                  pageSnapping: false,
-                  enableInfiniteScroll: false,
-                ),
-                items: _listRadio.map((e) {
-                  return InkWell(
-                    overlayColor: MaterialStateProperty.all(
-                      Colors.transparent,
-                    ),
-                    borderRadius: BorderRadius.all(
-                      Radius.circular(_radiusBorder),
-                    ),
-                    onTap: () {
-                      setState(() {
-                        for (var element in _listRadio) {
-                          element._isSelected = false;
-                        }
-                        e._isSelected = true;
-                        indexChoose = _listRadio.indexOf(e);
-                      });
-                    },
-                    child: RadioItem(
-                      item: e,
-                      radius: _radiusBorder,
-                    ),
-                  );
-                }).toList(),
-              ),
-            )
           ],
         ),
       ],
@@ -537,51 +614,6 @@ class _LayoutPageState extends State<LayoutPage>
         //       pageBuilder: (_, __, ___) => widgets[index]),
         // );
       },
-    );
-  }
-}
-
-class RadioModel {
-  late bool _isSelected;
-  final String _nameString;
-
-  RadioModel(this._isSelected, this._nameString);
-}
-
-class RadioItem extends StatelessWidget {
-  final RadioModel item;
-  final double radius;
-
-  const RadioItem({super.key, required this.item, required this.radius});
-
-  @override
-  Widget build(BuildContext context) {
-    return Container(
-      margin: const EdgeInsets.only(right: 20),
-      padding: const EdgeInsets.all(10),
-      alignment: Alignment.center,
-      // color: Colors.white12,
-      decoration: ShapeDecoration(
-        shape: RoundedRectangleBorder(
-          side: BorderSide(
-            color:
-                !item._isSelected ? Colors.white.withAlpha(80) : Colors.white70,
-            width: item._isSelected ? 2 : 1,
-          ),
-          borderRadius: BorderRadius.all(
-            Radius.circular(radius),
-          ),
-        ),
-        color: item._isSelected ? Colors.white24 : Colors.white12,
-      ),
-      child: Text(
-        item._nameString,
-        style: TextStyle(
-          color: item._isSelected ? Colors.white : Colors.black,
-          // fontWeight: FontWeight.bold,
-          fontSize: 20.0,
-        ),
-      ),
     );
   }
 }

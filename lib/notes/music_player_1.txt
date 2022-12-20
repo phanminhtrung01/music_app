@@ -1,0 +1,352 @@
+import 'dart:ui';
+
+import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:music_app/repository/audio_player.dart';
+import 'package:music_app/test/test_1.dart';
+import 'package:on_audio_query/on_audio_query.dart';
+import 'package:text_scroll/text_scroll.dart';
+
+class MusicPlayer extends StatefulWidget {
+  final AudioPlayerManager audioPlayerManager;
+
+  const MusicPlayer({
+    super.key,
+    required this.audioPlayerManager,
+  });
+
+  @override
+  State<MusicPlayer> createState() => _MusicPlayerState();
+}
+
+class _MusicPlayerState extends State<MusicPlayer> {
+  AudioPlayerManager get _audioPlayerManager => widget.audioPlayerManager;
+  late List<IndexedAudioSource> audioSources;
+  late int indexCurrent;
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    audioSources = _audioPlayerManager.audioPlayer.sequence!;
+    indexCurrent = _audioPlayerManager.audioPlayer.currentIndex!;
+    super.initState();
+  }
+
+  String _formatTime(Duration position) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final hours = twoDigits(position.inHours);
+    final min = twoDigits(position.inMinutes.remainder(60));
+    final sec = twoDigits(position.inSeconds.remainder(60));
+
+    return [if (position.inHours > 0) hours, min, sec].join(':');
+  }
+
+  @override
+  void dispose() {
+    // TODO: implement dispose
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return WillPopScope(
+      onWillPop: () async {
+        Navigator.pop(context);
+
+        return true;
+      },
+      child: Scaffold(
+        backgroundColor: Colors.white12,
+        appBar: AppBar(
+          backgroundColor: Colors.transparent,
+          automaticallyImplyLeading: false,
+          leading: IconButton(
+            onPressed: () {
+              Navigator.pop(context);
+            },
+            icon: const Icon(Icons.arrow_back),
+          ),
+          actions: [
+            Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: const [
+                Text(
+                  "Hello, Pathway",
+                  style: TextStyle(fontWeight: FontWeight.bold),
+                ),
+                Text("India", style: TextStyle(fontSize: 10))
+              ],
+            ),
+            const Padding(
+              padding: EdgeInsets.only(right: 8, left: 15),
+              child: Icon(Icons.favorite_border, size: 30),
+            )
+          ],
+        ),
+        body: SafeArea(
+          child: Column(
+            children: [
+              Flexible(
+                flex: 2,
+                child: Hero(
+                  tag: "image",
+                  child: Container(
+                    height: MediaQuery.of(context).size.height,
+                    width: MediaQuery.of(context).size.width,
+                    decoration: const BoxDecoration(
+                        image: DecorationImage(
+                          image: NetworkImage(
+                            "https://raw.githubusercontent.com/govindmaheshwari2"
+                                "/music_player_flutter/master/assets/song1.jpg",
+                          ),
+                          fit: BoxFit.cover,
+                        )),
+                  ),
+                ),
+              ),
+              Flexible(
+                child: AnimatedContainer(
+                  height: double.maxFinite,
+                  duration: const Duration(seconds: 1),
+                  curve: Curves.easeIn,
+                  decoration: BoxDecoration(boxShadow: [
+                    BoxShadow(
+                      blurRadius: 14,
+                      spreadRadius: 16,
+                      color: Colors.black.withOpacity(0.2),
+                    )
+                  ]),
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(16),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 4, sigmaY: 4),
+                      child: Container(
+                        padding: const EdgeInsets.all(10),
+                        decoration: BoxDecoration(
+                            color: Colors.white.withOpacity(0.3),
+                            borderRadius: BorderRadius.circular(20),
+                            border: Border.all(
+                              width: 1.5,
+                              color: Colors.white.withOpacity(0.2),
+                            )),
+                        child: Column(
+                          crossAxisAlignment: CrossAxisAlignment.start,
+                          mainAxisAlignment: MainAxisAlignment.spaceAround,
+                          children: [
+                            Row(
+                              children: [
+                                Flexible(
+                                  child: TextScroll(
+                                    audioSources[indexCurrent].tag['title'],
+                                    mode: TextScrollMode.endless,
+                                    velocity: const Velocity(
+                                        pixelsPerSecond: Offset(50, 0)),
+                                    pauseBetween:
+                                    const Duration(milliseconds: 3000),
+                                    style: const TextStyle(color: Colors.white),
+                                    selectable: true,
+                                    intervalSpaces: 30,
+                                  ),
+                                ),
+                              ],
+                            ),
+                            Flexible(
+                              child: Text(
+                                SongModel(audioSources[indexCurrent].tag)
+                                    .artist ??
+                                    "Unknown",
+                                style: const TextStyle(
+                                  color: Colors.white,
+                                ),
+                              ),
+                            ),
+                            AudioProgressBar(
+                              audioPlayerManager: _audioPlayerManager,
+                            ),
+                            // SliderTheme(
+                            //   data: SliderTheme.of(context).copyWith(
+                            //     thumbShape: const RoundSliderThumbShape(
+                            //       enabledThumbRadius: 5,
+                            //     ),
+                            //     trackShape: const RectangularSliderTrackShape(),
+                            //     trackHeight: 4,
+                            //   ),
+                            //   child: Slider(
+                            //     value: _position.inSeconds.toDouble(),
+                            //     max: _duration.inSeconds.toDouble(),
+                            //     min: 0,
+                            //     inactiveColor: Colors.white,
+                            //     activeColor: Colors.black,
+                            //     autofocus: true,
+                            //     onChanged: (value) {
+                            //       _position = Duration(seconds: value.toInt());
+                            //       _player.seek(_position);
+                            //       setState(() {});
+                            //     },
+                            //   ),
+                            // ),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                Text(
+                                  _formatTime(
+                                    _audioPlayerManager.audioPlayer.position,
+                                  ),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                  ),
+                                ),
+                                Text(
+                                  _formatTime(
+                                    _audioPlayerManager.audioPlayer.duration ??
+                                        const Duration(),
+                                  ),
+                                  style: const TextStyle(
+                                    color: Colors.white,
+                                    fontSize: 18,
+                                  ),
+                                )
+                              ],
+                            ),
+                            Expanded(
+                              child: Row(
+                                mainAxisAlignment:
+                                MainAxisAlignment.spaceAround,
+                                children: [
+                                  InkWell(
+                                    borderRadius: BorderRadius.circular(25),
+                                    onTap: () => {},
+                                    child: const CircleAvatar(
+                                      radius: 25,
+                                      backgroundColor: Colors.white12,
+                                      child: Icon(
+                                        Icons.shuffle,
+                                        size: 25,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                  InkWell(
+                                    borderRadius: BorderRadius.circular(25),
+                                    onTap: () {
+                                      _indexCurrent -= 1;
+                                      _playAction(_currentPlaySong
+                                          .songs[_indexCurrent]);
+                                      setState(() {});
+                                    },
+                                    child: const CircleAvatar(
+                                      radius: 25,
+                                      backgroundColor: Colors.white12,
+                                      child: Icon(
+                                        Icons.skip_previous,
+                                        size: 25,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                  InkWell(
+                                    borderRadius: BorderRadius.circular(30),
+                                    onTap: () {
+                                      if (_isPlaying) {
+                                        _player.pause();
+                                        _isPlaying = false;
+
+                                        // _audioPlayerBloc
+                                        //     .add(AudioPlayerEventPaused(
+                                        //   audioPlayer: _player,
+                                        // ));
+                                      } else {
+                                        _player.play();
+                                        _isPlaying = true;
+
+                                        // _audioPlayerBloc
+                                        //     .add(AudioPlayerEventPlayContinue(
+                                        //   audioPlayer: _player,
+                                        // ));
+                                      }
+                                    },
+                                    child: CircleAvatar(
+                                      radius: 30,
+                                      backgroundColor: Colors.white12,
+                                      child: _isPlaying
+                                          ? const Icon(
+                                        Icons.pause,
+                                        size: 35,
+                                      )
+                                          : const Icon(
+                                        Icons.play_arrow,
+                                        size: 35,
+                                      ),
+                                    ),
+                                  ),
+                                  InkWell(
+                                    borderRadius: BorderRadius.circular(25),
+                                    onTap: () {
+                                      _indexCurrent += 1;
+                                      _playAction(_currentPlaySong
+                                          .songs[_indexCurrent]);
+                                      setState(() {});
+                                    },
+                                    child: const CircleAvatar(
+                                      radius: 25,
+                                      backgroundColor: Colors.white12,
+                                      child: Icon(
+                                        Icons.skip_next,
+                                        size: 25,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                  InkWell(
+                                    borderRadius: BorderRadius.circular(25),
+                                    onTap: () {
+                                      if (_checkRepeat == _isRepeatAll) {
+                                        _checkRepeat = _isNotRepeat;
+                                      } else if (_checkRepeat == _isRepeatOne) {
+                                        _checkRepeat = _isRepeatAll;
+                                      } else {
+                                        _checkRepeat = _isRepeatOne;
+                                      }
+                                      setState(() => {});
+                                    },
+                                    child: CircleAvatar(
+                                      radius: 25,
+                                      backgroundColor: Colors.white12,
+                                      child: _checkRepeat == _isNotRepeat
+                                          ? const Icon(
+                                        Icons.repeat,
+                                        size: 25,
+                                        color: Colors.white,
+                                      )
+                                          : _checkRepeat == _isRepeatOne
+                                          ? const Icon(
+                                        Icons.repeat_one,
+                                        size: 25,
+                                        color: Colors.white,
+                                      )
+                                          : const Icon(
+                                        Icons.repeat_on,
+                                        size: 25,
+                                        color: Colors.white,
+                                      ),
+                                    ),
+                                  ),
+                                ],
+                              ),
+                            )
+                          ],
+                        ),
+                      ),
+                    ),
+                  ),
+                ),
+              )
+            ],
+          ),
+        ),
+      ),
+    );
+  }
+}

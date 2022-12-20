@@ -1,0 +1,8 @@
+Future<Uint8List> queryArtwork(int idSong) async {
+    Uint8List? something = await _audioQuery.queryArtwork(
+      idSong,
+      ArtworkType.AUDIO,
+    );
+
+    return something!;
+  }

@@ -1,0 +1,228 @@
+import 'package:audiotagger/audiotagger.dart';
+import 'package:audiotagger/models/tag.dart';
+import 'package:flutter/material.dart';
+import 'package:just_audio/just_audio.dart';
+import 'package:on_audio_query/on_audio_query.dart';
+import 'package:scrollable_positioned_list/scrollable_positioned_list.dart';
+
+class PlayMusic extends StatefulWidget {
+  const PlayMusic({Key? key}) : super(key: key);
+
+  @override
+  State<PlayMusic> createState() => _PlayMusicState();
+}
+
+class _PlayMusicState extends State<PlayMusic> {
+  final _player = AudioPlayer();
+  final _audioQuery = OnAudioQuery();
+  final tagger = Audiotagger();
+  final ItemScrollController _itemScrollController = ItemScrollController();
+  late bool _isPlayed = false;
+  late bool _isPlaying = false;
+  late Duration _duration = Duration.zero;
+  late Duration _position = Duration.zero;
+  late List<SongModel> songs = List.empty(growable: true);
+  late List<Tag> tagSongs = List.empty(growable: true);
+  late int _indexNextSong = 0;
+
+  @override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+    // _getSongList();
+    _player.positionStream.listen((event) => {
+          _position = event,
+          if (_position.inSeconds.toDouble() ==
+                  _duration.inSeconds.toDouble() &&
+              _isPlayed)
+            {
+              _playAction(songs[_indexNextSong]),
+              scrollItem(_indexNextSong),
+              _indexNextSong += 1,
+            },
+          setState(() {}),
+        });
+  }
+
+  Future scrollItem(int indexSong) async {
+    _itemScrollController.scrollTo(
+      index: indexSong,
+      curve: Curves.linear,
+      alignment: 0.6,
+      duration: const Duration(milliseconds: 1000),
+    );
+  }
+
+  Future<List<SongModel>> fetchSongs() async {
+    Future<List<SongModel>> songs = _audioQuery.querySongs(
+      sortType: null,
+      orderType: OrderType.ASC_OR_SMALLER,
+      uriType: UriType.EXTERNAL,
+      ignoreCase: true,
+    );
+
+    return songs;
+  }
+
+  void getSongs() async {
+    songs = await fetchSongs();
+  }
+
+  void _playAction(SongModel song) async {
+    _duration = (await _player.setFilePath(song.data))!;
+    _isPlayed = true;
+    _isPlaying = true;
+    setState(() {});
+    await _player.play();
+  }
+
+  String _formatTime(Duration position) {
+    String twoDigits(int n) => n.toString().padLeft(2, '0');
+    final hours = twoDigits(position.inHours);
+    final min = twoDigits(position.inMinutes.remainder(60));
+    final sec = twoDigits(position.inSeconds.remainder(60));
+
+    return [if (position.inHours > 0) hours, min, sec].join(':');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Scaffold(
+      // backgroundColor: Colors.black,
+      body: SafeArea(
+        child: FutureBuilder<List<SongModel>>(
+          future: fetchSongs(),
+          builder: (contextFuture, item) {
+            if (item.data == null) {
+              return const Center(
+                child: CircularProgressIndicator(),
+              );
+            }
+            if (item.data!.isEmpty) {
+              return const Center(
+                child: Text(
+                  'No Songs found',
+                  style: TextStyle(
+                    color: Colors.blueAccent,
+                  ),
+                ),
+              );
+            } else {
+              getSongs();
+              return Column(
+                children: [
+                  _isPlayed
+                      ? Padding(
+                          padding: const EdgeInsets.all(8.0),
+                          child: PhysicalModel(
+                            borderRadius: BorderRadius.circular(20),
+                            color: Colors.white,
+                            child: Column(
+                              children: [
+                                Slider(
+                                  value: _position.inSeconds.toDouble(),
+                                  onChanged: (value) {
+                                    _position =
+                                        Duration(seconds: value.toInt());
+                                    _player.seek(_position);
+                                    setState(() {});
+                                  },
+                                  min: 0,
+                                  max: _duration.inSeconds.toDouble(),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.all(12),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    crossAxisAlignment:
+                                        CrossAxisAlignment.start,
+                                    children: [
+                                      Text(
+                                        _formatTime(_position),
+                                        style: const TextStyle(
+                                          color: Colors.blueAccent,
+                                        ),
+                                      ),
+                                      IconButton(
+                                        onPressed: () {
+                                          _indexNextSong -= 2;
+                                          scrollItem(_indexNextSong);
+                                          _playAction(songs[_indexNextSong]);
+                                          _indexNextSong += 1;
+                                          setState(() {});
+                                        },
+                                        iconSize: 45,
+                                        icon: const Icon(Icons.skip_previous),
+                                      ),
+                                      IconButton(
+                                        onPressed: () {
+                                          if (_isPlaying) {
+                                            _player.pause();
+                                            _isPlaying = false;
+                                          } else {
+                                            _player.play();
+                                            _isPlaying = true;
+                                          }
+                                          setState(() {});
+                                        },
+                                        iconSize: 45,
+                                        icon: _isPlaying
+                                            ? const Icon(Icons.pause_circle)
+                                            : const Icon(Icons.play_circle),
+                                      ),
+                                      IconButton(
+                                        onPressed: () {
+                                          scrollItem(_indexNextSong);
+                                          _playAction(songs[_indexNextSong]);
+                                          _indexNextSong += 1;
+                                          setState(() {});
+                                        },
+                                        iconSize: 45,
+                                        icon: const Icon(Icons.skip_next),
+                                      ),
+                                      Text(
+                                        _formatTime(_duration),
+                                        style: const TextStyle(
+                                          color: Colors.blueAccent,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              ],
+                            ),
+                          ),
+                        )
+                      : Container(),
+                  Expanded(
+                    child: ScrollablePositionedList.separated(
+                      itemScrollController: _itemScrollController,
+                      shrinkWrap: true,
+                      physics: const BouncingScrollPhysics(),
+                      itemBuilder: (contextListview, index) {
+                        return ListTile(
+                          title: Text(item.data![index].title),
+                          tileColor:
+                              _indexNextSong - 1 == index ? Colors.blue : null,
+                          onTap: () {
+                            _indexNextSong = index + 1;
+                            _playAction(item.data![index]);
+                            scrollItem(index);
+                            setState(() {});
+                          },
+                        );
+                      },
+                      separatorBuilder: (contextSpe, index) => const Divider(),
+                      itemCount: item.data!.length,
+                    ),
+                  ),
+                ],
+              );
+            }
+          },
+        ),
+      ),
+    );
+  }
+}

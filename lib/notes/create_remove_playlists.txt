@@ -1,0 +1,31 @@
+Future<bool> removePlaylistsGenres() async {
+    late bool checkRemove = false;
+    _playlists = await queryListPlaylists();
+    for (var element in _playlists) {
+      checkRemove = await _audioQuery.removePlaylist(element.id);
+    }
+
+    if (_playlists.isEmpty) {
+      checkRemove = true;
+    }
+
+    setState(() {});
+    return checkRemove;
+  }
+
+  Future<bool> createPlaylistsGenres() async {
+    late bool check;
+    check = await removePlaylistsGenres();
+    if (check) {
+      for (var nameGenre in Genre.values) {
+        check = await _audioQuery.createPlaylist(nameGenre.name);
+      }
+      await _audioQuery.createPlaylist('Unknown');
+    }
+    _playlists = await queryListPlaylists();
+    if (_playlists.isNotEmpty) {
+      check = false;
+    }
+    setState(() {});
+    return check;
+  }

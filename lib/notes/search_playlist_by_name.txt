@@ -1,0 +1,30 @@
+PlaylistModel queryPlaylistByName(String namePlaylist) {
+    PlaylistModel playlistModel = PlaylistModel({});
+    for (var element in playlists) {
+      if (element.playlist == namePlaylist) {
+        playlistModel = element;
+        break;
+      }
+    }
+
+    return playlistModel;
+  }
+
+
+Future<bool> createPlaylistsGenres() async {
+    late bool check;
+    for (var nameGenre in Genre.values) {
+      check = await _audioQuery.createPlaylist(nameGenre.name);
+    }
+
+    debugPrint("Create Playlist Predict Success!");
+    return check;
+  }
+
+void addSongToPlaylist(int idPlaylist, int idSong) async {
+    try {
+      await _audioQuery.addToPlaylist(idPlaylist, idSong);
+    } catch (e) {
+      debugPrint('$e----------------------------');
+    }
+  }
