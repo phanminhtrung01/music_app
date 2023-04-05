@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:music_app/pages/ai/classification/music_classification.dart';
+import 'package:music_app/repository/audio_player.dart';
 
-Widget buildAlContain(BuildContext context) {
+Widget buildAlContain(
+    BuildContext context, AudioPlayerManager audioPlayerManager) {
   return IntrinsicHeight(
     child: Container(
       padding: const EdgeInsets.all(20.0),
@@ -22,7 +24,7 @@ Widget buildAlContain(BuildContext context) {
                     color: Colors.white12,
                     borderRadius: BorderRadius.all(Radius.circular(30))),
                 child: const Text(
-                  "Smart music classification",
+                  "Phân loại nhacj thông minh",
                   textAlign: TextAlign.center,
                   style: TextStyle(
                     fontWeight: FontWeight.w700,

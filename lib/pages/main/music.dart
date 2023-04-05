@@ -1,26 +1,30 @@
 import 'package:carousel_slider/carousel_slider.dart';
-import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
+import 'package:music_app/item/album.dart';
 import 'package:music_app/model/radio_model.dart';
 import 'package:music_app/pages/play/music_player.dart';
 import 'package:music_app/repository/audio_player.dart';
-import 'package:music_app/repository/my_sql.dart';
-import 'package:on_audio_query/on_audio_query.dart';
+import 'package:music_app/repository/song_repository.dart';
+import 'package:transparent_image/transparent_image.dart';
+
+import '../../model/song.dart';
 
 enum SingingCharacter {
   all,
-  // albums,
+  albums,
   // artists,
-  playlists,
+  //playlists,
   // genres,
 }
 
 class MusicContain extends StatefulWidget {
   final AudioPlayerManager audioPlayerManager;
+  final SongRepository songRepository;
 
   const MusicContain({
     Key? key,
     required this.audioPlayerManager,
+    required this.songRepository,
   }) : super(key: key);
 
   @override
@@ -28,35 +32,22 @@ class MusicContain extends StatefulWidget {
 }
 
 class _MusicContainState extends State<MusicContain> {
-  final MySqlService _mySqlService = MySqlService();
-  final OnAudioQuery _audioQuery = OnAudioQuery();
   late final List<RadioModel> _listRadio =
       List<RadioModel>.empty(growable: true);
-  late List<SongModel> songs = List.empty(growable: true);
-  late List<SongModel> songsForAlbum = List.empty(growable: true);
-  late List<SongModel> songsForPlaylist = List.empty(growable: true);
-  late List<AlbumModel> albums = List.empty(growable: true);
-  late List<GenreModel> genres = List.empty(growable: true);
-  late List<PlaylistModel> playlists = List.empty(growable: true);
+  late List<Song> songs = List.empty(growable: true);
+  late List<AlbumSong> albums = List.empty(growable: true);
   late CarouselController _carouselController;
   late String typeMusic;
-  late int numberOfType;
 
   AudioPlayerManager get _audioPlayerManager => widget.audioPlayerManager;
+
+  SongRepository get _songRepository => widget.songRepository;
 
   @override
   void initState() {
     // TODO: implement initState
     super.initState();
     typeMusic = "All";
-    requestPermission();
-    queryListSongHandled();
-    queryListAlbums();
-    queryListGenres();
-    queryListPlaylists();
-    queryListSongFromAlbum(59);
-    queryListSongFromPlaylist(5555);
-    numberOfType = songs.length;
     _carouselController = CarouselController();
     for (var element in SingingCharacter.values) {
       _listRadio.add(RadioModel(
@@ -68,107 +59,11 @@ class _MusicContainState extends State<MusicContain> {
     setState(() {});
   }
 
-  requestPermission() async {
-    // Web platform don't support permissions methods.
-    if (!kIsWeb) {
-      bool permissionStatus = await _audioQuery.permissionsStatus();
-      if (!permissionStatus) {
-        await _audioQuery.permissionsRequest();
-      }
-      setState(() {});
-    }
-  }
-
-  Future<List<String>> queryPathSongListHandled() async {
-    late List<String> pathSongs = List.empty(growable: true);
-    final query = await _audioQuery.queryAllPath();
-    List<String> a = List.empty(growable: true);
-    List<String> x = List.empty(growable: true);
-    for (var element in query) {
-      x = element.split('/');
-      bool b = x.contains('ringtone');
-      bool c = x.contains('Notifications');
-      bool d = x.contains('sound_recorder');
-      bool e = x.contains('call_rec');
-      bool f = x.contains('vocal_r');
-      bool g = x.contains('vocal_remover');
-      if (b || c || d || e || f || g) {
-        continue;
-      }
-      a.add(element);
-    }
-
-    pathSongs.addAll(a);
-    return pathSongs;
-  }
-
-  void queryListSongHandled() async {
-    final queryAllPathSong = await queryPathSongListHandled();
-
-    for (var pathSong in queryAllPathSong) {
-      final result = await _audioQuery.querySongs(path: pathSong);
-      for (var song in result) {
-        {
-          if (song.duration! != 0 ||
-              Duration(seconds: song.duration!) > const Duration(seconds: 30)) {
-            songs.add(song);
-          }
-        }
-      }
-    }
-    numberOfType = songs.length;
-    setState(() {});
-  }
-
-  void queryListSongFromAlbum(int idAlbum) async {
-    songsForAlbum = await _audioQuery.queryAudiosFrom(
-      AudiosFromType.ALBUM_ID,
-      idAlbum,
-      // You can also define a sortType
-      sortType: SongSortType.ALBUM, // Default
-      orderType: OrderType.ASC_OR_SMALLER,
-      ignoreCase: true,
-    );
-    setState(() {});
-  }
-
-  void queryListSongFromPlaylist(int idPlaylist) async {
-    songsForPlaylist = await _audioQuery.queryAudiosFrom(
-      AudiosFromType.PLAYLIST,
-      idPlaylist,
-      // You can also define a sortType
-      sortType: SongSortType.TITLE, // Default
-      orderType: OrderType.ASC_OR_SMALLER,
-      ignoreCase: true,
-    );
-    setState(() {});
-  }
-
-  void queryListGenres() async {
-    genres = await _audioQuery.queryGenres(
-      sortType: GenreSortType.GENRE,
-      uriType: UriType.EXTERNAL,
-      ignoreCase: true,
-    );
-    setState(() {});
-  }
-
-  void queryListAlbums() async {
-    albums = await _audioQuery.queryAlbums(
-      sortType: AlbumSortType.ALBUM,
-      uriType: UriType.EXTERNAL,
-      ignoreCase: true,
-    );
-    setState(() {});
-  }
-
-  void queryListPlaylists() async {
-    playlists = await _audioQuery.queryPlaylists(
-      sortType: PlaylistSortType.PLAYLIST,
-      uriType: UriType.EXTERNAL,
-      ignoreCase: true,
-    );
-    setState(() {});
+  @override
+  void dispose() {
+    // TODO: implement dispose
+    super.dispose();
+    //_songRepository.songsFutureLocal.d();
   }
 
   @override
@@ -218,7 +113,7 @@ class _MusicContainState extends State<MusicContain> {
                               typeMusic == 'all'
                                   ? typeMusic = 'Songs'
                                   : typeMusic;
-                              numberOfType = songs.length;
+                              _songRepository.sizeList.value = songs.length;
                               setState(() {});
                             },
                             child: const SizedBox(
@@ -257,13 +152,13 @@ class _MusicContainState extends State<MusicContain> {
                               }
                               _listRadio[1].isSelected = true;
                               _carouselController.jumpToPage(1);
-                              numberOfType = playlists.length;
 
                               typeMusic = _listRadio[1].nameString.replaceFirst(
                                     typeMusic.substring(0, 1),
                                     typeMusic.substring(0, 1).toUpperCase(),
                                   );
 
+                              _songRepository.sizeList.value = 0;
                               setState(() {});
                             },
                             child: const SizedBox(
@@ -282,7 +177,7 @@ class _MusicContainState extends State<MusicContain> {
                         height: 5.0,
                       ),
                       const Text(
-                        "Genres",
+                        "Album",
                         style: TextStyle(
                           fontSize: 16,
                         ),
@@ -293,201 +188,182 @@ class _MusicContainState extends State<MusicContain> {
               ),
             ),
             const SizedBox(height: 5.0),
-            Container(
-              width: 500,
-              padding: const EdgeInsets.only(
-                top: 15.0,
-                left: 10.0,
-                right: 10.0,
-              ),
-              child: Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Text(
-                    typeMusic,
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                  Text(
-                    '$numberOfType ${typeMusic != 'Genres' ? typeMusic.toLowerCase().substring(0, typeMusic.length - 1) : typeMusic.toLowerCase()}',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.w600,
-                    ),
-                  ),
-                ],
-              ),
-            ),
             const SizedBox(height: 10.0),
-            CarouselSlider(
-              carouselController: _carouselController,
-              options: CarouselOptions(
-                height: _audioPlayerManager.isPlayOrNotPlayNotifier.value
-                    ? heightContext -
-                        heightHeader -
-                        heightSizeBox -
-                        heightBottomNaviBar -
-                        heightPlayerSong
-                    : heightContext -
-                        heightHeader -
-                        heightSizeBox -
-                        heightBottomNaviBar,
-                initialPage: 0,
-                viewportFraction: 1,
-                padEnds: false,
-                enableInfiniteScroll: false,
-                onPageChanged: (index, __) {
-                  setState(() {
-                    for (var element in _listRadio) {
-                      element.isSelected = false;
-                    }
-                    _listRadio[index].isSelected = true;
-                  });
-                },
-              ),
-              items: [
-                ListView.separated(
-                    separatorBuilder: (_, __) {
-                      return const Divider(
-                        thickness: 5,
-                        color: Colors.white70,
-                      );
-                    },
-                    itemCount: songs.length,
-                    padding: const EdgeInsets.all(20),
-                    itemBuilder: (_, index) {
-                      return InkWell(
-                        onTap: () {
-                          if (!_audioPlayerManager
-                              .isPlayOrNotPlayNotifier.value) {
-                            _audioPlayerManager.setInitialPlaylist(songs);
-                            _audioPlayerManager.isPlayOrNotPlayNotifier.value =
-                                true;
+            StreamBuilder(
+              stream: _songRepository.songsFutureLocal.stream,
+              builder: (_, item) {
+                if (item.data == null) {
+                  return const Center(
+                    child: CircularProgressIndicator(),
+                  );
+                } else if (item.requireData.isEmpty) {
+                  return const Center(
+                    child: Text("Not found Song!"),
+                  );
+                }
+
+                if (item.connectionState == ConnectionState.active) {
+                  songs = item.data!;
+                  _songRepository.sizeList.value = songs.length;
+                }
+
+                return Column(children: [
+                  Container(
+                    width: 500,
+                    padding: const EdgeInsets.only(
+                      top: 15.0,
+                      left: 10.0,
+                      right: 10.0,
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        Text(
+                          typeMusic,
+                          style: const TextStyle(
+                            fontWeight: FontWeight.w600,
+                          ),
+                        ),
+                        ValueListenableBuilder(
+                            valueListenable: _songRepository.sizeList,
+                            builder: (context, value, __) {
+                              return Text(
+                                '$value ${typeMusic != 'Genres' ? typeMusic.toLowerCase().substring(0, typeMusic.length - 1) : typeMusic.toLowerCase()}',
+                                style: const TextStyle(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              );
+                            }),
+                      ],
+                    ),
+                  ),
+                  CarouselSlider(
+                    carouselController: _carouselController,
+                    options: CarouselOptions(
+                      height: _audioPlayerManager.isPlayOrNotPlayNotifier.value
+                          ? heightContext -
+                              heightHeader -
+                              heightSizeBox -
+                              heightBottomNaviBar -
+                              heightPlayerSong
+                          : heightContext -
+                              heightHeader -
+                              heightSizeBox -
+                              heightBottomNaviBar,
+                      initialPage: 0,
+                      viewportFraction: 1,
+                      padEnds: false,
+                      enableInfiniteScroll: false,
+                      onPageChanged: (index, __) {
+                        setState(() {
+                          for (var element in _listRadio) {
+                            element.isSelected = false;
                           }
-                          _audioPlayerManager.playMusic(index);
+                          _listRadio[index].isSelected = true;
+                        });
+                      },
+                    ),
+                    items: [
+                      ListView.separated(
+                          separatorBuilder: (_, __) {
+                            return const Divider(
+                              thickness: 2,
+                              color: Colors.white12,
+                            );
+                          },
+                          itemCount: songs.length,
+                          padding: const EdgeInsets.all(20),
+                          itemBuilder: (_, index) {
+                            Song song = songs[index];
 
-                          _mySqlService.insertSongSql(songs[index]);
+                            return InkWell(
+                              onTap: () {
+                                if (!_audioPlayerManager
+                                    .isPlayOrNotPlayNotifier.value) {
+                                  _audioPlayerManager.setInitialPlaylist(
+                                      songs, false, index);
+                                  _audioPlayerManager
+                                      .isPlayOrNotPlayNotifier.value = true;
+                                }
 
-                          Navigator.of(context).push(
-                            MaterialPageRoute(
-                              builder: (context) => MusicPlayer(
-                                audioPlayerManager: _audioPlayerManager,
-                              ),
-                            ),
-                          );
-                        },
-                        child: Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                          children: [
-                            SizedBox(
-                              width: 80,
-                              height: 80,
-                              child: QueryArtworkWidget(
-                                artworkBorder: BorderRadius.circular(10),
-                                id: songs[index].id,
-                                type: ArtworkType.AUDIO,
-                              ),
-                            ),
-                            const SizedBox(width: 10),
-                            Flexible(
-                              child: SizedBox(
-                                child: Column(
-                                  mainAxisAlignment:
-                                      MainAxisAlignment.spaceEvenly,
-                                  children: [
-                                    Text(
-                                      songs[index].displayName,
-                                      maxLines: 2,
-                                      softWrap: true,
-                                      overflow: TextOverflow.ellipsis,
-                                      style: const TextStyle(fontSize: 17.0),
+                                _audioPlayerManager.playMusic(index);
+
+                                Navigator.of(context).push(
+                                  MaterialPageRoute(
+                                    builder: (context) => MusicPlayer(
+                                      audioPlayerManager: _audioPlayerManager,
                                     ),
-                                    Align(
-                                      alignment: Alignment.topLeft,
-                                      child: Text(
-                                        songs[index].artist ?? "Unknown",
-                                        maxLines: 1,
-                                        softWrap: true,
-                                        overflow: TextOverflow.ellipsis,
-                                        style: const TextStyle(
-                                          fontSize: 14.0,
-                                        ),
+                                  ),
+                                );
+                              },
+                              child: Row(
+                                mainAxisAlignment:
+                                    MainAxisAlignment.spaceEvenly,
+                                children: [
+                                  SizedBox(
+                                    height: 70,
+                                    width: 70,
+                                    child: ClipRRect(
+                                      borderRadius: BorderRadius.circular(10),
+                                      child: FadeInImage(
+                                        image: song.artworks![0],
+                                        fadeInDuration:
+                                            const Duration(seconds: 1),
+                                        placeholder:
+                                            MemoryImage(kTransparentImage),
+                                        fit: BoxFit.cover,
                                       ),
                                     ),
-                                  ],
-                                ),
+                                  ),
+                                  const SizedBox(width: 10),
+                                  Flexible(
+                                    child: Column(
+                                      children: [
+                                        Align(
+                                          alignment: Alignment.topLeft,
+                                          child: Text(
+                                            song.title!,
+                                            maxLines: 2,
+                                            softWrap: true,
+                                            overflow: TextOverflow.ellipsis,
+                                            style:
+                                                const TextStyle(fontSize: 18.0),
+                                          ),
+                                        ),
+                                        const SizedBox(
+                                          height: 10,
+                                        ),
+                                        Align(
+                                          alignment: Alignment.centerLeft,
+                                          child: Text(
+                                            song.artist ?? "Unknown",
+                                            maxLines: 1,
+                                            softWrap: true,
+                                            overflow: TextOverflow.ellipsis,
+                                            style: const TextStyle(
+                                              fontSize: 14.0,
+                                            ),
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                  )
+                                ],
                               ),
-                            )
-                          ],
-                        ),
-                      );
-                    }),
-                buildAlbum(),
-              ],
+                            );
+                          }),
+                      AlbumSong(
+                        songRepository: _songRepository,
+                        audioPlayer: _audioPlayerManager,
+                      )
+                    ],
+                  )
+                ]);
+              },
             ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget buildAlbum() {
-    return ListView.separated(
-      separatorBuilder: (_, __) {
-        return const Divider(
-          thickness: 5,
-          color: Colors.white70,
-        );
-      },
-      itemCount: songsForPlaylist.length,
-      padding: const EdgeInsets.all(20),
-      itemBuilder: (_, indexGenres) {
-        return InkWell(
-          child: Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              SizedBox(
-                width: 80,
-                height: 80,
-                child: QueryArtworkWidget(
-                  artworkBorder: BorderRadius.circular(10),
-                  id: songsForPlaylist[indexGenres].id,
-                  type: ArtworkType.AUDIO,
-                ),
-              ),
-              const SizedBox(width: 10),
-              Flexible(
-                child: SizedBox(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                    children: [
-                      Text(
-                        songsForPlaylist[indexGenres].title.toString(),
-                        maxLines: 2,
-                        softWrap: true,
-                        overflow: TextOverflow.ellipsis,
-                        style: const TextStyle(fontSize: 17.0),
-                      ),
-                      Align(
-                        alignment: Alignment.topLeft,
-                        child: Text(
-                          songsForPlaylist[indexGenres].artist.toString(),
-                          maxLines: 1,
-                          softWrap: true,
-                          overflow: TextOverflow.ellipsis,
-                          style: const TextStyle(
-                            fontSize: 14.0,
-                          ),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              )
-            ],
-          ),
-        );
-      },
     );
   }
 }

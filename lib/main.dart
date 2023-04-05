@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:music_app/pages/ai/classification/music_classification.dart';
 import 'package:music_app/pages/ai/classification/song_recognition.dart';
 import 'package:music_app/pages/ai/classification/test.dart';
@@ -10,8 +11,13 @@ import 'package:music_app/repository/audio_player.dart';
 import 'package:music_app/repository/song_repository.dart';
 import 'package:music_app/test_main/on_qurey_local.dart';
 
-void main() {
+void main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  await FlutterDownloader.initialize(
+    debug: true,
+    ignoreSsl: true,
+  );
+
   runApp(MyApp());
 }
 
@@ -28,17 +34,18 @@ class MyApp extends StatelessWidget {
       title: 'Flutter Demo',
       theme: ThemeData(
         textTheme: const TextTheme(
-          bodyText1: TextStyle(
+          bodyLarge: TextStyle(
             color: Colors.white,
             fontSize: 15,
           ),
-          bodyText2: TextStyle(
+          bodyMedium: TextStyle(
             color: Colors.white,
             fontSize: 20,
           ),
         ),
       ),
-      initialRoute: '$LayoutPage',
+      //initialRoute: '$LayoutPage',
+      home: LayoutPage(audioPlayerManager: _audioPlayerManager),
       routes: {
         '$TestAudio': (_) => const TestAudio(),
         '$TestQueryLocal': (_) => const TestQueryLocal(),

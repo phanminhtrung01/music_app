@@ -3,28 +3,36 @@ import 'dart:convert';
 import 'dart:io';
 
 import 'package:flutter/foundation.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_downloader/flutter_downloader.dart';
 import 'package:http/http.dart' as http;
 import 'package:http/http.dart';
+import 'package:music_app/main_api/search_song.dart';
+import 'package:music_app/model/album.dart';
+import 'package:music_app/model/object_json/info_song.dart';
+import 'package:music_app/model/object_json/response.dart';
+import 'package:music_app/model/object_json/song_request.dart';
+import 'package:music_app/model/song.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 import 'package:path/path.dart';
 import 'package:path_provider/path_provider.dart';
+import 'package:permission_handler/permission_handler.dart';
 import 'package:rxdart/rxdart.dart';
 
 enum Genre {
+  music80s,
   bolero,
-  edm,
-  jazz,
   pop,
-  rap,
+  remix,
 }
 
 class ApiPredictSong {
-  final int idSong;
+  final String title;
   final int statusCode;
   final int predict;
 
   ApiPredictSong({
-    required this.idSong,
+    required this.title,
     required this.statusCode,
     required this.predict,
   });
@@ -34,7 +42,7 @@ class PlaylistGenreSong {
   final int idPlaylist;
   final String namePlaylist;
   final String imageAsset;
-  final List<SongModel> songs;
+  final List<Song> songs;
 
   PlaylistGenreSong({
     required this.idPlaylist,
@@ -45,45 +53,87 @@ class PlaylistGenreSong {
 }
 
 class SongRepository {
-  List<String> imagesGenre = [
-    'assets/images/bolero_music.png',
-    'assets/images/edm_music.jpg',
+  final List<String> imagesGenre = [
     'assets/images/jazz_music.jpg',
+    'assets/images/bolero_music.png',
     'assets/images/pop_music.jpg',
-    'assets/images/rap_music.jpg',
+    'assets/images/edm_music.jpg',
   ];
+
   final OnAudioQuery _audioQuery = OnAudioQuery();
   late bool permissionStates = false;
-  late List<SongModel> songs = List.empty(growable: true);
   late ValueNotifier<bool> checkComplete = ValueNotifier<bool>(false);
-  final List<PlaylistGenreSong> _playlistsGenreSong =
-  List.empty(growable: true);
+  late ValueNotifier<int> sizeList = ValueNotifier<int>(0);
 
+  //final receivePort = ReceivePort();
+
+  final List<PlaylistGenreSong> _playlistsGenreSong =
+      List.empty(growable: true);
+  final List<Song> songs = List.empty(growable: true);
+
+  late StreamController<List<Song>> songsFutureLocal = BehaviorSubject();
+  late StreamController<List<InfoSong>> streamNewReleaseSong =
+      BehaviorSubject();
   late StreamController<List<PlaylistGenreSong>> streamPlaylists =
-  BehaviorSubject();
+      BehaviorSubject();
+  final String urlApiMusicPredict =
+      'https://fbe8-2001-ee0-5004-bc20-984-9817-b6a-8719.ap.ngrok.io/';
+  static const String hostApi = '18.143.123.217';
+  static const String pathApi = 'pmdv/ma/';
 
   SongRepository() {
     _init();
   }
 
   void _init() async {
-    songs = await queryListSongHandled();
+    //songsFuture = queryListSongLocal();
+    //songsFuture.addStream(queryListSongLocal());
+    queryListSongLocal();
+    queryListSongNewReleaseSongOnline().then((value) async {
+      songs.addAll(await getAllSourceSong(value));
+    });
+
     if (!streamPlaylists.hasListener) {
-      streamPlaylists.addStream(getPredictAllSong(songs));
+      debugPrint('No listen');
+      // songsFuture
+      //     .then((value) => streamPlaylists.addStream(getPredictAllSong(value)));
     }
+
     debugPrint("Success!");
   }
 
-  Future<bool> requestPermission() async {
-    // Web platform don't support permissions methods.
-    late bool permissionStatus = false;
-    if (!kIsWeb) {
-      permissionStatus = await _audioQuery.permissionsStatus();
-      if (!permissionStatus) {
-        await _audioQuery.permissionsRequest();
-      }
+  Future<List<Album>> queryListAlbum() async {
+    List<AlbumModel> list = await _audioQuery.queryAlbums(
+      sortType: AlbumSortType.ALBUM,
+      uriType: UriType.EXTERNAL,
+      ignoreCase: true,
+    );
+    List<Album> listAlbum = List.empty(growable: true);
+    for (AlbumModel albumNModel in list) {
+      Uint8List? uInt8list =
+          await _audioQuery.queryArtwork(albumNModel.id, ArtworkType.ALBUM);
+      Album album = Album.fromAlbumModel(albumNModel);
+      album.artworks = uInt8list;
+
+      listAlbum.add(album);
     }
-    return permissionStatus;
+
+    return listAlbum;
+  }
+
+  Future<bool> requestPermission() async {
+    bool checkStatus = false;
+    Permission permission = Permission.manageExternalStorage;
+    if (await permission.isDenied) {
+      permission.request();
+      if (await permission.isGranted) {
+        return true;
+      }
+    } else {
+      return true;
+    }
+
+    return checkStatus;
   }
 
   Future<List<PlaylistModel>> queryListPlaylists() async {
@@ -117,28 +167,9 @@ class SongRepository {
     return pathSongs;
   }
 
-  Future<List<SongModel>> queryListSongHandled() async {
-    List<SongModel> listTemp = List.empty(growable: true);
-    final queryAllPathSong = await queryPathSongListHandled();
-
-    for (var pathSong in queryAllPathSong) {
-      final result = await _audioQuery.querySongs(path: pathSong);
-      for (var song in result) {
-        {
-          if (song.duration! != 0 ||
-              Duration(seconds: song.duration!) > const Duration(seconds: 30)) {
-            listTemp.add(song);
-          }
-        }
-      }
-    }
-    return listTemp;
-  }
-
-  Stream<List<PlaylistGenreSong>> getPredictAllSong(
-      List<SongModel> songs) async* {
+  Stream<List<PlaylistGenreSong>> getPredictAllSong(List<Song> songs) async* {
     ApiPredictSong apiPredictSong = ApiPredictSong(
-      idSong: -1,
+      title: "",
       statusCode: -1,
       predict: -1,
     );
@@ -152,7 +183,7 @@ class SongRepository {
     for (var song in songs) {
       apiPredictSong = await predictGenreSong(song);
 
-      if (apiPredictSong.idSong == song.id &&
+      if (apiPredictSong.title == song.title &&
           apiPredictSong.statusCode == 200) {
         late int predictGenre = apiPredictSong.predict;
         playlistGenreSong = PlaylistGenreSong(
@@ -186,13 +217,15 @@ class SongRepository {
     yield _playlistsGenreSong;
   }
 
-  Future<ApiPredictSong> predictGenreSong(SongModel song) async {
-    Uri uriPost = Uri.parse(
-        'https://c4b5-2001-ee0-4f85-8d90-5dd7-7355-6173-35a8.ap.ngrok.io'
-            '/predict/song/${song.id}');
+  Future<ApiPredictSong> predictGenreSong(Song song) async {
+    Uri urlPredict =
+        Uri.parse(join(urlApiMusicPredict, "predict/song/${song.title}"));
+
+    debugPrint(urlPredict.toString());
+
     final request = http.MultipartRequest(
       "POST",
-      uriPost,
+      urlPredict,
     );
 
     final headers = {
@@ -203,7 +236,7 @@ class SongRepository {
     request.headers.addAll(headers);
 
     late StreamedResponse response;
-    late int songId = -1;
+    late String songTitle = "";
     late int predict = -1;
     late int statusCode;
     try {
@@ -212,9 +245,7 @@ class SongRepository {
         'files',
         fileSong.readAsBytes().asStream(),
         fileSong.lengthSync(),
-        filename: fileSong.path
-            .split('/')
-            .last,
+        filename: fileSong.path.split('/').last,
       ));
 
       response = await request.send();
@@ -223,7 +254,7 @@ class SongRepository {
         final res = await http.Response.fromStream(response);
         final resJson = jsonDecode(res.body);
 
-        songId = resJson['songId'];
+        songTitle = resJson['songId'];
         predict = resJson['predict'];
         statusCode = 200;
 
@@ -240,7 +271,7 @@ class SongRepository {
     }
 
     ApiPredictSong apiPredictSong = ApiPredictSong(
-      idSong: songId,
+      title: songTitle,
       predict: predict,
       statusCode: statusCode,
     );
@@ -258,5 +289,158 @@ class SongRepository {
     tempFile.writeAsBytesSync(response.bodyBytes);
 
     return tempFile;
+  }
+
+  void requestDownload(String urlDownload) async {
+    try {
+      final dirApp = (await getExternalStorageDirectory())!
+          .parent
+          .parent
+          .parent
+          .parent
+          .absolute
+          .path;
+      final dirDownload = join(dirApp, 'PMDV/');
+
+      await FlutterDownloader.enqueue(
+        url: urlDownload,
+        savedDir: dirDownload,
+        showNotification: true,
+        openFileFromNotification: true,
+      );
+    } catch (e) {
+      debugPrint(e.toString());
+    }
+  }
+
+  Future<List<SongRequest>> fetchSearchSongs(String urlSearch) async {
+    final Uri uriSearchSong = Uri.parse(join(hostApi, urlSearch));
+    final response = await http.get(uriSearchSong);
+
+    if (response.statusCode == 200) {
+      var json = jsonDecode(utf8.decode(response.bodyBytes));
+      List jsonResponse = json.decode(response.body);
+      return jsonResponse.map((data) => SongRequest.fromJson(data)).toList();
+    } else {
+      throw Exception('Failed to load');
+    }
+  }
+
+  Future<List<Song>> queryListSongLocal() async {
+    List<String> listStr = await queryPathSongListHandled();
+    List<SongModel> songModels = List.empty(growable: true);
+    List<Song> songs = List.empty(growable: true);
+    AssetImage imageDefault = const AssetImage("assets/images/R.jpg");
+
+    for (var data in listStr) {
+      List<SongModel> songsModel = await _audioQuery.querySongs(path: data);
+      songModels.addAll(songsModel);
+    }
+
+    for (SongModel songModel in songModels) {
+      Uint8List? uInt8list =
+          await _audioQuery.queryArtwork(songModel.id, ArtworkType.AUDIO);
+      final Song song = Song.fromSongModel(songModel);
+      song.artworks =
+          uInt8list != null ? [MemoryImage(uInt8list)] : [imageDefault];
+      songs.add(song);
+    }
+
+    songsFutureLocal.sink.add(songs);
+
+    return songs;
+  }
+
+  static Future<ResponseSong?> getData(
+      String url, Map<String, dynamic> pars) async {
+    ResponseSong? responseSong;
+    try {
+      Uri uri;
+      pars.isEmpty
+          ? uri = Uri.http(hostApi, join(pathApi, url))
+          : uri = Uri.http(hostApi, join(pathApi, url), pars);
+
+      final response = await http.get(uri);
+      final json = jsonDecode(utf8.decode(response.bodyBytes));
+      responseSong = ResponseSong.fromJson(json);
+    } catch (_) {}
+
+    return responseSong;
+  }
+
+  Future<List<InfoSong>> queryListSongNewReleaseSongOnline() async {
+    List<InfoSong> items = List.empty(growable: true);
+    ResponseSong? responseF = await getData(SearchSong.getSongNewRelease, {});
+
+    if (responseF != null) {
+      final int status = responseF.status;
+      if (status == 200) {
+        List dataJson = responseF.data;
+        items = dataJson.map((data) {
+          return InfoSong.infoSongFromJson(data);
+        }).toList();
+      }
+    }
+
+    streamNewReleaseSong.sink.add(items);
+    return items;
+  }
+
+  Future<List<Song>> getAllSourceSong(List<InfoSong> infoSongs) async {
+    List<Future<Song>> futures = [];
+
+    for (var element in infoSongs) {
+      futures.add(getSourceSong(element));
+      // await Isolate.spawn(getSourceSong, [element, receivePort.sendPort]);
+    }
+
+    List<Song> results = await Future.wait(futures);
+    return results;
+  }
+
+  Future<Song> getSourceSong(InfoSong infoSong) async {
+    Song song = Song(data: "");
+    ResponseSong? responseSong =
+        await getData(SearchSong.streamSource, {'id': infoSong.id});
+    if (responseSong != null) {
+      var data = responseSong.data;
+      try {
+        String data_128 = data['128'];
+        song = Song.fromInfoSong(infoSong);
+        song.data = data_128;
+      } catch (_) {}
+    }
+
+    return song;
+  }
+
+  static Future<Song> getSourceSongById(Song instance) async {
+    ResponseSong? responseSong =
+        await getData(SearchSong.streamSource, {'id': instance.data});
+    if (responseSong != null) {
+      var data = responseSong.data;
+      try {
+        String data_128 = data['128'];
+        instance.data = data_128;
+      } catch (_) {}
+    }
+
+    return instance;
+  }
+
+  Future<Song> getSong(String pathFile, String pathFile2) async {
+    Song songResult = Song(data: "");
+    Directory directory = Directory(pathFile2);
+    List<FileSystemEntity> files = directory.listSync();
+    List<SongModel> songs = await _audioQuery.querySongs(path: directory.path);
+    for (var file in files) {
+      for (var song in songs) {
+        if (song.data == file.path) {
+          songResult = Song.fromSongModel(song);
+          break;
+        }
+      }
+    }
+    return songResult;
   }
 }

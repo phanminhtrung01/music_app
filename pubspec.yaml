@@ -20,7 +20,7 @@ publish_to: 'none' # Remove this line if you wish to publish to pub.dev
 version: 1.0.0+1
 
 environment:
-  sdk: '>=2.18.4 <3.0.0'
+  sdk: '>=2.19.0 <3.0.0'
 
 # Dependencies specify other packages that your package needs in order to work.
 # To automatically upgrade your package dependencies to the latest versions
@@ -38,7 +38,6 @@ dependencies:
   curved_navigation_bar: ^1.0.3
   carousel_slider: ^4.1.1
   carousel_indicator: ^1.0.6
-  ripple_animation: ^0.0.1+2
   file_picker: ^5.2.3
   just_audio: ^0.9.30
   path: ^1.6.0
@@ -52,7 +51,13 @@ dependencies:
   mysql1: ^0.20.0
   rxdart: ^0.27.7
   blur: ^3.1.0
-
+  intl: ^0.18.0
+  equatable: ^2.0.5
+  flutter_downloader: ^1.9.1
+  dart_tags: ^0.4.0
+  flutter_lyric: ^2.0.4+6
+  cached_network_image: ^3.2.3
+  transparent_image: ^2.0.1
 
 dev_dependencies:
   flutter_test:
@@ -63,6 +68,7 @@ dev_dependencies:
   # package. See that file for information about deactivating specific lint
   # rules and activating additional ones.
   flutter_lints: ^2.0.0
+  build_runner: ^2.3.3
 
 # For information on the generic Dart part of this file, see the
 # following page: https://dart.dev/tools/pub/pubspec

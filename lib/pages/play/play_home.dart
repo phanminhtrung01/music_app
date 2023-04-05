@@ -2,8 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:music_app/pages/play/music_player.dart';
 import 'package:music_app/repository/audio_player.dart';
 import 'package:music_app/repository/audio_player_manager.dart';
-import 'package:on_audio_query/on_audio_query.dart';
 import 'package:text_scroll/text_scroll.dart';
+import 'package:transparent_image/transparent_image.dart';
 
 class PlayerHome extends StatefulWidget {
   final AudioPlayerManager audioPlayerManager;
@@ -74,16 +74,34 @@ class _PlayerHomeState extends State<PlayerHome> {
               child: ValueListenableBuilder(
                 valueListenable: _audioPlayerManager.currentSongNotifier,
                 builder: (_, songMode, __) {
+                  if (songMode.isCheckNull(songMode)) {
+                    return const Center(
+                      child: CircularProgressIndicator(),
+                    );
+                  }
                   return Row(
-                    crossAxisAlignment: CrossAxisAlignment.start,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      Hero(
-                        tag: "imageSongDisplay",
-                        child: QueryArtworkWidget(
-                          id: songMode.id,
-                          type: ArtworkType.AUDIO,
-                        ),
+                      Builder(
+                        builder: (_) {
+                          return ClipRRect(
+                            borderRadius: BorderRadius.circular(5),
+                            child: Hero(
+                              tag: "imageSongDisplay",
+                              child: SizedBox(
+                                height: 50,
+                                width: 50,
+                                child: FadeInImage(
+                                  image: songMode.artworks![0],
+                                  fadeInDuration: const Duration(seconds: 1),
+                                  placeholder: MemoryImage(kTransparentImage),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                          );
+                        },
                       ),
                       const SizedBox(width: 10),
                       Expanded(
@@ -93,7 +111,7 @@ class _PlayerHomeState extends State<PlayerHome> {
                           children: [
                             Flexible(
                               child: TextScroll(
-                                songMode.title,
+                                songMode.title ?? "Unknown",
                                 intervalSpaces: 15,
                                 style: const TextStyle(
                                   color: Colors.white,
@@ -127,7 +145,7 @@ class _PlayerHomeState extends State<PlayerHome> {
                             icon: const Icon(
                               Icons.skip_previous,
                               color: Colors.white,
-                              size: 35,
+                              size: 30,
                             ),
                             audioPlayerManager: _audioPlayerManager,
                           ),
@@ -136,12 +154,12 @@ class _PlayerHomeState extends State<PlayerHome> {
                               Icon(
                                 Icons.play_arrow,
                                 color: Colors.white,
-                                size: 35,
+                                size: 30,
                               ),
                               Icon(
                                 Icons.pause,
                                 color: Colors.white,
-                                size: 35,
+                                size: 30,
                               ),
                             ],
                             audioPlayerManager: _audioPlayerManager,
@@ -149,7 +167,7 @@ class _PlayerHomeState extends State<PlayerHome> {
                           NextSongButton(
                             icon: const Icon(
                               Icons.skip_next,
-                              size: 35,
+                              size: 30,
                               color: Colors.white,
                             ),
                             audioPlayerManager: _audioPlayerManager,

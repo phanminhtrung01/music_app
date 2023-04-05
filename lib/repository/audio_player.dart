@@ -1,13 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
+import 'package:music_app/model/object_json/info_song.dart';
+import 'package:music_app/model/song.dart';
 import 'package:music_app/notifiers/play_button_notifier.dart';
 import 'package:music_app/notifiers/progress_notifier.dart';
 import 'package:music_app/notifiers/repeat_button_notifier.dart';
-import 'package:on_audio_query/on_audio_query.dart';
+import 'package:music_app/repository/song_repository.dart';
 
 class AudioPlayerManager {
-  final currentSongNotifier = ValueNotifier<SongModel>(SongModel({}));
-  final playlistNotifier = ValueNotifier<List<SongModel>>([]);
+  final currentSongNotifier = ValueNotifier<Song>(Song(data: ""));
+  final playlistNotifier = ValueNotifier<List<Song>>([]);
+  final indexCurrentOnline = ValueNotifier<int>(0);
+  final playlistOnlineNotifier = ValueNotifier<List<InfoSong>>([]);
   final progressNotifier = ProgressNotifier();
   final repeatButtonNotifier = RepeatButtonNotifier();
   final isFirstSongNotifier = ValueNotifier<bool>(true);
@@ -15,7 +19,10 @@ class AudioPlayerManager {
   final isLastSongNotifier = ValueNotifier<bool>(false);
   final isShuffleModeEnabledNotifier = ValueNotifier<bool>(false);
   final isPlayOrNotPlayNotifier = ValueNotifier<bool>(false);
+  final isChangePlaylist = ValueNotifier<bool>(false);
+  final isPlayOnOffline = ValueNotifier<bool>(false);
 
+  //final SongRepository repository;
   late AudioPlayer audioPlayer;
 
   AudioPlayerManager() {
@@ -38,31 +45,35 @@ class AudioPlayerManager {
   }
 
   // TODO: set playlist
-  void setInitialPlaylist(List<SongModel> songs) async {
+  void setInitialPlaylist(List<Song> songs, bool check, int index) async {
     final playlist = ConcatenatingAudioSource(
       // Start loading next item just before reaching it
       useLazyPreparation: true,
       // Customise the shuffle algorithm
       shuffleOrder: DefaultShuffleOrder(),
       // Specify the playlist items
-      children: songs
-          .map(
-            (song) => AudioSource.uri(
-              Uri.file(song.data),
-              tag: song, // changed
-            ),
-          )
-          .toList(),
+      children: songs.map((song) {
+        return !check
+            ? AudioSource.file(
+                song.data,
+                tag: song, // changed
+              )
+            : AudioSource.uri(
+                Uri.parse(song.data),
+                tag: song,
+              );
+      }).toList(),
     );
 
     await audioPlayer
         .setAudioSource(playlist,
-            initialIndex: 0, initialPosition: Duration.zero)
+            initialIndex: index, initialPosition: Duration.zero)
         .catchError((error) {
       // catch load errors: 404, invalid url ...
       debugPrint("An error occurred $error");
     });
 
+    indexCurrentOnline.value = index;
     playlistNotifier.value = songs;
   }
 
@@ -118,16 +129,26 @@ class AudioPlayerManager {
   }
 
   void _listenForChangesInSequenceState() {
-    audioPlayer.sequenceStateStream.listen((sequenceState) {
+    audioPlayer.sequenceStateStream.listen((sequenceState) async {
       if (sequenceState == null) return;
       // TODO: update current song info
-      final currentItem = sequenceState.currentSource;
-      final song = currentItem?.tag as SongModel;
+      IndexedAudioSource? currentItem = sequenceState.currentSource;
+      Song song = currentItem?.tag as Song;
+      if (song.data.isEmpty) {
+        currentSongNotifier.value = Song(data: "");
+        song = await SongRepository.getSourceSongById(song);
+        if (song.data.isEmpty) {
+          audioPlayer.seekToNext();
+        }
+      }
+
+      currentItem = sequenceState.currentSource;
+      song = currentItem?.tag as Song;
       currentSongNotifier.value = song;
 
       // TODO: update playlist
       final playlist = sequenceState.effectiveSequence;
-      final songs = playlist.map((item) => item.tag as SongModel).toList();
+      final songs = playlist.map((item) => item.tag as Song).toList();
       playlistNotifier.value = songs;
       // TODO: update shuffle mode
       isShuffleModeEnabledNotifier.value = sequenceState.shuffleModeEnabled;
@@ -181,16 +202,34 @@ class AudioPlayerManager {
     }
   }
 
-  void onNextSongButtonPressed() {
+  void onNextSongButtonPressed() async {
     // TODO
-    int indexCurrent = audioPlayer.currentIndex!;
-    int allList = audioPlayer.sequence!.length;
+    int indexCurrent;
+    int allList;
+    indexCurrent = audioPlayer.currentIndex!;
+    allList = audioPlayer.sequence!.length;
     if ((indexCurrent == allList - 1 && audioPlayer.loopMode == LoopMode.off)) {
       isLastSongNotifier.value = true;
     } else {
       isFirstSongNotifier.value = false;
       audioPlayer.seekToNext();
     }
+    // if (playlistNotifier.value.length == 1) {
+    //   // indexCurrent = indexCurrentOnline.value;
+    //   // allList = playlistOnlineNotifier.value.length;
+    //   // if (indexCurrent == allList - 1 && audioPlayer.loopMode == LoopMode.off) {
+    //   //   isLastSongNotifier.value = true;
+    //   // } else {
+    //   //   isFirstSongNotifier.value = false;
+    //   //   InfoSong infoSong = playlistOnlineNotifier.value[indexCurrent + 1];
+    //   //   Song song = (await songRepository.getSourceSong(infoSong))!;
+    //   //   setInitialPlaylist([song], true);
+    //   //   playMusic(0);
+    //   //   indexCurrentOnline.value++;
+    //   // }
+    // } else {
+    //
+    // }
   }
 
   void onShuffleButtonPressed() async {

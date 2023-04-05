@@ -1,19 +1,22 @@
+import 'dart:convert';
+
 class Song {
-  final int songId;
-  final String title;
-  final dynamic tag;
+  final int? songId;
+  final String songName;
+  final dynamic songInfo;
+  final int predictGenre;
 
   Song({
-    required this.songId,
-    required this.title,
-    required this.tag,
+    this.songId,
+    required this.songName,
+    required this.songInfo,
+    required this.predictGenre,
   });
 
-  factory Song.fromJson(Map<String, dynamic> json) {
-    return Song(
-      songId: json['songId'],
-      title: json['title'],
-      tag: {'tag'},
-    );
+  @override
+  String toString() {
+    // TODO: implement toString
+    return "Song: {SongName: $songName; SongInfo: ${jsonDecode(
+        songInfo)}; PredictGenre: $predictGenre}";
   }
 }
