@@ -1,0 +1,192 @@
+  Widget buildLayoutSearch(BuildContext context) {
+    final ThemeData themeData = Theme.of(context);
+
+    return Stack(
+      children: [
+        LayoutBuilder(
+          builder: (context, constraints) {
+            return TweenAnimationBuilder(
+              tween: Tween(begin: 0.0, end: 1.0),
+              duration: const Duration(milliseconds: 500),
+              builder: (context, value, child) {
+                return ShaderMask(
+                  blendMode: BlendMode.dstIn,
+                  shaderCallback: (rect) {
+                    return RadialGradient(
+                      radius: value * 5,
+                      colors: [
+                        themeData.colorScheme.primary,
+                        themeData.colorScheme.primary,
+                        Colors.transparent,
+                        Colors.transparent,
+                      ],
+                      stops: const [0, 0.5, 0.75, 1],
+                      center: const FractionalOffset(0.5, 0.2),
+                    ).createShader(rect);
+                  },
+                  child: Container(
+                    height: value * 1000,
+                    color: themeData.colorScheme.secondary,
+                    child: child,
+                  ),
+                );
+              },
+            );
+          },
+        ),
+        Column(
+          children: [
+            Container(
+              padding: const EdgeInsets.only(top: 25, right: 10, left: 10),
+              decoration: BoxDecoration(
+                border: Border(
+                  bottom: BorderSide(
+                    color: themeData.colorScheme.primary.withAlpha(20),
+                    width: 2,
+                  ),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          child: AnimatedIcon(
+                            icon: AnimatedIcons.menu_arrow,
+                            progress: _animationController,
+                            color: themeData.buttonTheme.colorScheme!.secondary,
+                          ),
+                        ),
+                        IconButton(
+                          onPressed: () => {
+                            _animationController.reverse(),
+                            setState(() {
+                              checkSearch = false;
+                            }),
+                          },
+                          splashRadius: _radiusBorder,
+                          icon: const Icon(
+                            Icons.arrow_back,
+                            color: Colors.transparent,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
+                  Flexible(
+                    flex: 6,
+                    child: TextField(
+                      controller: _textEditingController,
+                      onSubmitted: (value) {
+                        searchString = value;
+                        setState(() {});
+                      },
+                      autocorrect: false,
+                      cursorColor: themeData.focusColor,
+                      cursorWidth: 3,
+                      showCursor: true,
+                      autofocus: true,
+                      style: TextStyle(color: themeData.colorScheme.primary),
+                      decoration: InputDecoration(
+                        filled: true,
+                        border: InputBorder.none,
+                        suffixIcon: IconButton(
+                          splashRadius: _radiusBorder,
+                          onPressed: () async {
+                            FocusManager.instance.primaryFocus!.unfocus();
+                            searchString = _textEditingController.value.text;
+                            songsRequest =
+                                _songRepository.fetchSearchSongs(searchString);
+
+                            setState(() {});
+                          },
+                          icon: Icon(
+                            Icons.search,
+                            color: themeData.buttonTheme.colorScheme!.secondary,
+                          ),
+                        ),
+                        focusColor: themeData.focusColor,
+                        enabled: true,
+                        hintText: "Enter your song",
+                        hintStyle: TextStyle(
+                          color: themeData.hintColor,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            Expanded(
+              child: FutureBuilder(
+                future: songsRequest,
+                builder: (_, songs) {
+                  if (songs.data == null) {
+                    return Center(
+                      child: CircularProgressIndicator(
+                        color: themeData.colorScheme.primary,
+                      ),
+                    );
+                  } else if (songs.requireData.isEmpty) {
+                    return Center(
+                      child: Text(
+                        'Not found song search!',
+                        style: themeData.textTheme.bodyLarge,
+                      ),
+                    );
+                  }
+
+                  return ListView.separated(
+                    itemCount: songs.requireData.length,
+                    separatorBuilder: (_, __) {
+                      return Divider(
+                        thickness: 2,
+                        color: themeData.colorScheme.onPrimary.withAlpha(10),
+                      );
+                    },
+                    itemBuilder: (_, indexSong) {
+                      SongRequest songRequest = songs.requireData[indexSong];
+                      return ListTile(
+                        title: Text(
+                          songRequest.title,
+                        ),
+                        subtitle: Text(
+                          songRequest.singer,
+                        ),
+                        onTap: () {
+                          Navigator.push(
+                            context,
+                            PageRouteBuilder(
+                              pageBuilder: (
+                                contextPage,
+                                animation,
+                                secondaryAnimation,
+                              ) {
+                                return MusicPlayerOnline(
+                                  songRepository: _songRepository,
+                                  songsRequest: songs.requireData,
+                                );
+                              },
+                              transitionsBuilder: (context, animation,
+                                  secondaryAnimation, child) {
+                                return FadeTransition(
+                                  opacity: animation,
+                                  child: child,
+                                );
+                              },
+                            ),
+                          );
+                        },
+                      );
+                    },
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ],
+    );
+  }

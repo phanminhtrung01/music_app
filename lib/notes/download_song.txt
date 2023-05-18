@@ -1,0 +1,79 @@
+
+final ReceivePort _port = ReceivePort();
+
+@override
+  void initState() {
+    // TODO: implement initState
+    super.initState();
+
+    IsolateNameServer.registerPortWithName(
+      _port.sendPort,
+      'downloader_send_port',
+    );
+    _port.listen(
+          (dynamic data) async {
+        DownloadTaskStatus downloadTaskStatus = data[1];
+        if (downloadTaskStatus == DownloadTaskStatus.complete) {
+          try {
+            late List<DownloadTask>? downloadSong = [];
+            downloadSong = await FlutterDownloader.loadTasks();
+            for (var i = 0; i < downloadSong!.length - 1; i++) {
+              await FlutterDownloader.remove(
+                taskId: downloadSong[i].taskId,
+                shouldDeleteContent: false,
+              );
+            }
+            downloadSong = await FlutterDownloader.loadTasks();
+            String dirSave = downloadSong!.last.savedDir;
+            String pathDir = dirSave.substring(0, dirSave.length - 1);
+            String fileName = downloadSong.last.filename ?? '';
+            final pathFile = [pathDir, fileName];
+
+            final fileSong = join(dirSave, fileName);
+            File file = File(fileSong);
+            Uint8List bytes = await file.readAsBytes();
+            for (var i = 0; i < downloadSong.length; i++) {
+              await FlutterDownloader.remove(
+                taskId: downloadSong[i].taskId,
+                shouldDeleteContent: true,
+              );
+            }
+            downloadSong = await FlutterDownloader.loadTasks();
+            await file.create(recursive: true);
+
+            await file.writeAsBytes(bytes);
+            if (downloadSong == null || downloadSong.isEmpty) {
+              final streamPlaylists =
+              _songRepository.streamPlaylists = BehaviorSubject();
+              final songModel =
+              await _songRepository.getSong(pathFile[0], pathFile[1]);
+
+              streamPlaylists
+                  .addStream(_songRepository.getPredictAllSong([songModel]));
+            }
+          } catch (e) {
+            debugPrint(e.toString());
+          }
+        }
+
+        progress = data[2];
+
+        setState(() {});
+      },
+      onError: (e, y) {
+        debugPrint(e.toString());
+      },
+      onDone: () {
+        debugPrint("DONE!");
+      },
+    );
+
+    FlutterDownloader.registerCallback(downloadCallback);
+  }
+
+static void downloadCallback(String id, DownloadTaskStatus status,
+      int progress) {
+    final SendPort? send =
+    IsolateNameServer.lookupPortByName('downloader_send_port');
+    send?.send([id, status, progress]);
+  }

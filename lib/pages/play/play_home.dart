@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:music_app/pages/play/music_player.dart';
+import 'package:music_app/repository/app_manager.dart';
 import 'package:music_app/repository/audio_player.dart';
 import 'package:music_app/repository/audio_player_manager.dart';
 import 'package:text_scroll/text_scroll.dart';
@@ -7,10 +8,12 @@ import 'package:transparent_image/transparent_image.dart';
 
 class PlayerHome extends StatefulWidget {
   final AudioPlayerManager audioPlayerManager;
+  final AppManager appManager;
 
   const PlayerHome({
     super.key,
     required this.audioPlayerManager,
+    required this.appManager,
   });
 
   @override
@@ -19,6 +22,8 @@ class PlayerHome extends StatefulWidget {
 
 class _PlayerHomeState extends State<PlayerHome> {
   AudioPlayerManager get _audioPlayerManager => widget.audioPlayerManager;
+
+  AppManager get _appManager => widget.appManager;
 
   @override
   void initState() {
@@ -29,7 +34,8 @@ class _PlayerHomeState extends State<PlayerHome> {
   @override
   Widget build(BuildContext context) {
     // TODO: implement build
-    const double heightPlayerHome = 130.0;
+    final ThemeData themeData = Theme.of(context);
+    const Duration durationAnimation = Duration(milliseconds: 500);
 
     return InkWell(
       borderRadius: BorderRadius.circular(20),
@@ -37,33 +43,19 @@ class _PlayerHomeState extends State<PlayerHome> {
         Navigator.of(context).push(
           MaterialPageRoute(
             builder: (context) => MusicPlayer(
+              appManager: _appManager,
               audioPlayerManager: _audioPlayerManager,
             ),
           ),
         );
-        // Navigator.push(
-        //   context,
-        //   PageRouteBuilder(
-        //     pageBuilder: (contextPage, animation, secondaryAnimation) {
-        //
-        //     },
-        //     transitionsBuilder:
-        //         (context, animation, secondaryAnimation, child) {
-        //       return FadeTransition(
-        //         opacity: animation,
-        //         child: child,
-        //       );
-        //     },
-        //   ),
-        // )
       },
       child: Container(
-        height: heightPlayerHome,
+        height: _appManager.heightPlayerHome,
         width: double.maxFinite,
         padding: const EdgeInsets.all(12),
-        decoration: const BoxDecoration(
-            color: Colors.black,
-            borderRadius: BorderRadius.only(
+        decoration: BoxDecoration(
+            color: themeData.colorScheme.secondary.withAlpha(50),
+            borderRadius: const BorderRadius.only(
               topRight: Radius.circular(20),
               topLeft: Radius.circular(20),
             )),
@@ -75,28 +67,38 @@ class _PlayerHomeState extends State<PlayerHome> {
                 valueListenable: _audioPlayerManager.currentSongNotifier,
                 builder: (_, songMode, __) {
                   if (songMode.isCheckNull(songMode)) {
-                    return const Center(
-                      child: CircularProgressIndicator(),
+                    return Center(
+                      child: CircularProgressIndicator(
+                        color: themeData.focusColor,
+                      ),
                     );
                   }
+
+                  final Key keySong = ValueKey(songMode);
                   return Row(
                     crossAxisAlignment: CrossAxisAlignment.center,
                     mainAxisAlignment: MainAxisAlignment.spaceAround,
                     children: [
-                      Builder(
-                        builder: (_) {
-                          return ClipRRect(
-                            borderRadius: BorderRadius.circular(5),
-                            child: Hero(
-                              tag: "imageSongDisplay",
-                              child: SizedBox(
-                                height: 50,
-                                width: 50,
-                                child: FadeInImage(
-                                  image: songMode.artworks![0],
-                                  fadeInDuration: const Duration(seconds: 1),
-                                  placeholder: MemoryImage(kTransparentImage),
-                                  fit: BoxFit.cover,
+                      ValueListenableBuilder(
+                        valueListenable:
+                            _audioPlayerManager.indexCurrentSongNotifier,
+                        builder: (_, valueIndex, __) {
+                          return Hero(
+                            tag: "imageSongDisplay$valueIndex",
+                            child: AnimatedSwitcher(
+                              duration: durationAnimation,
+                              child: ClipRRect(
+                                key: keySong,
+                                borderRadius: BorderRadius.circular(5),
+                                child: SizedBox(
+                                  height: 50,
+                                  width: 50,
+                                  child: FadeInImage(
+                                    image: songMode.artworks![0],
+                                    fadeInDuration: const Duration(seconds: 1),
+                                    placeholder: MemoryImage(kTransparentImage),
+                                    fit: BoxFit.cover,
+                                  ),
                                 ),
                               ),
                             ),
@@ -105,35 +107,39 @@ class _PlayerHomeState extends State<PlayerHome> {
                       ),
                       const SizedBox(width: 10),
                       Expanded(
+                        flex: 5,
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                           children: [
-                            Flexible(
-                              child: TextScroll(
-                                songMode.title ?? "Unknown",
-                                intervalSpaces: 15,
-                                style: const TextStyle(
-                                  color: Colors.white,
-                                  fontSize: 18,
-                                  fontWeight: FontWeight.bold,
+                            Expanded(
+                              child: AnimatedSwitcher(
+                                duration: durationAnimation,
+                                child: TextScroll(
+                                  key: keySong,
+                                  songMode.title ?? "Unknown",
+                                  intervalSpaces: 15,
+                                  textAlign: TextAlign.start,
+                                  style: themeData.textTheme.bodySmall,
+                                  pauseBetween:
+                                      const Duration(milliseconds: 3000),
+                                  velocity: const Velocity(
+                                      pixelsPerSecond: Offset(25, 0)),
                                 ),
-                                pauseBetween:
-                                    const Duration(milliseconds: 3000),
-                                velocity: const Velocity(
-                                    pixelsPerSecond: Offset(25, 0)),
                               ),
                             ),
                             const SizedBox(height: 5),
-                            Flexible(
-                              child: Text(
-                                songMode.artist ?? "Unknown",
-                                style: const TextStyle(
-                                  fontSize: 16,
-                                  color: Colors.white54,
+                            Expanded(
+                              child: AnimatedSwitcher(
+                                duration: durationAnimation,
+                                child: Text(
+                                  key: keySong,
+                                  songMode.artist ?? "Unknown",
+                                  style: themeData.textTheme.bodySmall,
+                                  maxLines: 1,
+                                  textAlign: TextAlign.start,
+                                  overflow: TextOverflow.ellipsis,
                                 ),
-                                maxLines: 1,
-                                overflow: TextOverflow.ellipsis,
                               ),
                             )
                           ],
@@ -142,38 +148,46 @@ class _PlayerHomeState extends State<PlayerHome> {
                       Row(
                         children: [
                           PreviousSongButton(
-                            icon: const Icon(
+                            iconActive: Icon(
                               Icons.skip_previous,
-                              color: Colors.white,
                               size: 30,
+                              color: themeData.buttonTheme.colorScheme!.primary,
+                            ),
+                            iconNoActive: Icon(
+                              Icons.skip_previous,
+                              size: 30,
+                              color:
+                                  themeData.buttonTheme.colorScheme!.secondary,
                             ),
                             audioPlayerManager: _audioPlayerManager,
                           ),
                           PlayButton(
-                            icons: const [
-                              Icon(
-                                Icons.play_arrow,
-                                color: Colors.white,
-                                size: 30,
-                              ),
-                              Icon(
-                                Icons.pause,
-                                color: Colors.white,
-                                size: 30,
-                              ),
-                            ],
+                            color: themeData.buttonTheme.colorScheme!.primary,
+                            size: 25,
                             audioPlayerManager: _audioPlayerManager,
                           ),
                           NextSongButton(
-                            icon: const Icon(
+                            icon: Icon(
                               Icons.skip_next,
                               size: 30,
-                              color: Colors.white,
+                              color: themeData.buttonTheme.colorScheme!.primary,
                             ),
                             audioPlayerManager: _audioPlayerManager,
                           ),
                         ],
                       ),
+                      Flexible(
+                        child: IconButton(
+                          onPressed: () {
+                            _audioPlayerManager.isPlayOrNotPlayNotifier.value =
+                                false;
+                          },
+                          icon: Icon(
+                            Icons.close,
+                            color: themeData.buttonTheme.colorScheme!.primary,
+                          ),
+                        ),
+                      )
                     ],
                   );
                 },
@@ -182,20 +196,23 @@ class _PlayerHomeState extends State<PlayerHome> {
             Expanded(
               child: SizedBox(
                 child: AudioProgressBar(
-                  map: const {
+                  map: {
                     'barHeight': 6.0,
-                    'thumbRadius': 7.0,
-                    'thumbGlowRadius': 20.0,
-                    'baseBarColor': Colors.white54,
-                    'progressBarColor': Colors.white,
-                    'bufferedBarColor': Colors.white38,
-                    'thumbColor': Colors.grey,
-                    'thumbGlowColor': Colors.white70,
+                    'thumbRadius': 8.0,
+                    'thumbGlowRadius': 10.0,
+                    'thumbGlowColor':
+                        themeData.buttonTheme.colorScheme!.primary,
+                    'baseBarColor':
+                        themeData.buttonTheme.colorScheme!.secondary,
+                    'progressBarColor': themeData.highlightColor,
+                    'bufferedBarColor': themeData.focusColor,
+                    'thumbColor': themeData.primaryColor,
+                    'timeLabelTextStyle': themeData.textTheme.bodySmall,
                   },
                   audioPlayerManager: _audioPlayerManager,
                 ),
               ),
-            )
+            ),
           ],
         ),
       ),

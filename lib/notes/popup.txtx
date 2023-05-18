@@ -1,0 +1,35 @@
+FutureBuilder(
+                        future: Future.delayed(const Duration(seconds: 1)),
+                        builder: (context, snapshot) {
+                          if (snapshot.connectionState ==
+                              ConnectionState.done) {
+                            WidgetsBinding.instance.addPostFrameCallback((_) {
+                              showDialog(
+                                context: context,
+                                builder: (context) {
+                                  return Card(
+                                    semanticContainer: false,
+                                    child: ListView(
+                                      children: const [
+                                        ListTile(title: Text('Result 1')),
+                                        ListTile(title: Text('Result 2')),
+                                        ListTile(title: Text('Result 3')),
+                                      ],
+                                    ),
+                                  );
+                                },
+                              );
+                              // showMenu(
+                              //   context: context,
+                              //   position: const RelativeRect.fromLTRB(
+                              //       100, 100, 100, 100),
+                              //   items: [
+                              //     const PopupMenuItem(child: Text('Item 1')),
+                              //     const PopupMenuItem(child: Text('Item 2')),
+                              //   ],
+                              // );
+                            });
+                          }
+                          return Container();
+                        },
+                      )

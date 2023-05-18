@@ -1,0 +1,22 @@
+//TODO: AnimationWords
+    for (int i = 0; i < _durationWords.length; i++) {
+      AnimationController animationController = AnimationController(
+        vsync: this,
+        duration: _durationWords[i],
+      );
+      animationController.stop();
+      if (i == 0) {
+        animationController.forward();
+      }
+      _animationControllerWords.add(animationController);
+      Animation<double> animation = Tween<double>(begin: 0.0, end: 1.0)
+          .animate(_animationControllerWords[i]);
+      _animationWords.add(animation);
+    }
+    for (int i = 0; i < _animationControllerWords.length - 1; i++) {
+      _animationControllerWords[i].addStatusListener((status) {
+        if (status == AnimationStatus.completed) {
+          _animationControllerWords[i + 1].forward();
+        }
+      });
+    }

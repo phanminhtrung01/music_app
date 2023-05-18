@@ -1,0 +1,29 @@
+ListView.separated(
+                                    itemCount: valueString.length < 5
+                                        ? valueString.length
+                                        : 5,
+                                    shrinkWrap: true,
+                                    separatorBuilder: (_, __) {
+                                      return Divider(
+                                        height: 2,
+                                        thickness: 2,
+                                        color: themeData.colorScheme.onPrimary
+                                            .withOpacity(0.2),
+                                      );
+                                    },
+                                    itemBuilder: (_, index) {
+                                      return ListTile(
+                                        title: AnimatedSwitcher(
+                                          duration: const Duration(
+                                              milliseconds: 1000),
+                                          child: Text(
+                                            textAlign: TextAlign.start,
+                                            key: ValueKey(valueString),
+                                            'Suggest: $valueString',
+                                            style:
+                                                themeData.textTheme.bodySmall,
+                                          ),
+                                        ),
+                                      );
+                                    },
+                                  ),

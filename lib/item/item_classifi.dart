@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import 'package:music_app/model/check_boc.dart';
 import 'package:music_app/pages/play/music_player.dart';
 import 'package:music_app/pages/play/play_home.dart';
+import 'package:music_app/repository/app_manager.dart';
 import 'package:music_app/repository/audio_player.dart';
 import 'package:music_app/repository/song_repository.dart';
 import 'package:on_audio_query/on_audio_query.dart';
@@ -12,6 +13,7 @@ import '../model/song.dart';
 class ItemClassification extends StatefulWidget {
   final SongRepository repository;
   final AudioPlayerManager audioPlayerManager;
+  final AppManager appManager;
   final int indexPlaylist;
 
   const ItemClassification({
@@ -19,6 +21,7 @@ class ItemClassification extends StatefulWidget {
     required this.repository,
     required this.indexPlaylist,
     required this.audioPlayerManager,
+    required this.appManager,
   }) : super(key: key);
 
   @override
@@ -38,6 +41,8 @@ class _ItemClassificationState extends State<ItemClassification> {
   int get _indexPlaylist => widget.indexPlaylist;
 
   AudioPlayerManager get _audioPlayerManager => widget.audioPlayerManager;
+
+  AppManager get _appManager => widget.appManager;
 
   @override
   void initState() {
@@ -227,11 +232,15 @@ class _ItemClassificationState extends State<ItemClassification> {
 
                                                 _audioPlayerManager
                                                     .playMusic(0);
+                                                _audioPlayerManager
+                                                    .indexCurrentSongNotifier
+                                                    .value = 0;
 
                                                 Navigator.of(context).push(
                                                   MaterialPageRoute(
                                                     builder: (context) =>
                                                         MusicPlayer(
+                                                      appManager: _appManager,
                                                       audioPlayerManager:
                                                           _audioPlayerManager,
                                                     ),
@@ -378,6 +387,7 @@ class _ItemClassificationState extends State<ItemClassification> {
                         ),
                         _audioPlayerManager.isPlayOrNotPlayNotifier.value
                             ? PlayerHome(
+                                appManager: _appManager,
                                 audioPlayerManager: _audioPlayerManager,
                               )
                             : Container(),

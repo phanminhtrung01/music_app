@@ -1,0 +1,77 @@
+Widget buildContainer(BuildContext context) {
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        buildReaderWidget(context),
+      ],
+    );
+  }
+
+  var lyricPadding = 40.0;
+
+  Stack buildReaderWidget(BuildContext context) {
+    return Stack(
+      children: [
+        ...buildReaderBackground(),
+        LyricsReader(
+          padding: EdgeInsets.symmetric(horizontal: lyricPadding),
+          model: lyricModel,
+          position: 20000,
+          lyricUi: lyricUI,
+          playing: playing,
+          size: Size(double.infinity, MediaQuery.of(context).size.height / 2),
+          emptyBuilder: () => Center(
+            child: Text(
+              "No lyrics",
+              style: lyricUI.getOtherMainTextStyle(),
+            ),
+          ),
+          selectLineBuilder: (progress, confirm) {
+            return Row(
+              children: [
+                IconButton(
+                    onPressed: () {
+                      confirm.call();
+                      setState(() {
+                        audioPlayer.seek(Duration(milliseconds: progress));
+                      });
+                    },
+                    icon: const Icon(Icons.play_arrow, color: Colors.green)),
+                Expanded(
+                  child: Container(
+                    decoration: const BoxDecoration(color: Colors.green),
+                    height: 1,
+                    width: double.infinity,
+                  ),
+                ),
+                Text(
+                  progress.toString(),
+                  style: const TextStyle(color: Colors.green),
+                )
+              ],
+            );
+          },
+        )
+      ],
+    );
+  }
+
+  List<Widget> buildReaderBackground() {
+    return [
+      Positioned.fill(
+        child: CachedNetworkImage(
+          fit: BoxFit.cover,
+          imageUrl: 'https://photo-resize-zmp3.zmdcdn.me/w240_r1x1_jpeg/cover'
+              '/4/a/d/4/4ad439b918f3356addb5f237c1380ffc.jpg',
+        ),
+      ),
+      Positioned.fill(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: Container(
+            color: Colors.black.withOpacity(0.3),
+          ),
+        ),
+      )
+    ];
+  }

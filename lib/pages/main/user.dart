@@ -1,27 +1,33 @@
 import 'package:flutter/material.dart';
 import 'package:music_app/pages/login/login.dart';
-import 'package:music_app/pages/main/layout.dart';
+import 'package:music_app/pages/main/main.dart';
+import 'package:music_app/pages/user/Favorite%20Gene.dart';
+import 'package:music_app/pages/user/FavoriteSongs.dart';
+import 'package:music_app/pages/user/recent_search.dart';
 
 @override
 Widget buildUserContain(BuildContext context, bool checkLogin) {
+  final ThemeData themeData = Theme.of(context);
+
   return IntrinsicHeight(
     child: Container(
-      color: Colors.white12,
+      color: themeData.colorScheme.background,
       child: Column(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
         children: <Widget>[
-          Container(
-            color: Colors.white12,
+          ClipRRect(
+            borderRadius: BorderRadius.circular(20),
             child: Container(
               padding: const EdgeInsets.only(
                 top: 10.0,
                 bottom: 10.0,
-                right: 20.0,
-                left: 20.0,
+                right: 10.0,
+                left: 10.0,
               ),
-              color: Colors.white10,
+              color: themeData.colorScheme.primary.withAlpha(100),
               alignment: Alignment.topLeft,
               child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
                 children: [
                   CircleAvatar(
                     radius: 30,
@@ -30,13 +36,12 @@ Widget buildUserContain(BuildContext context, bool checkLogin) {
                           "https://dntech.vn/uploads/details/2021/11/images/ai%20l%C3%A0%20g%C3%AC.jpg"),
                     ).image,
                   ),
-                  const SizedBox(width: 20),
                   Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
-                      const Text(
+                      Text(
                         "PMTPMTPMTPMTPMT",
-                        style: TextStyle(fontWeight: FontWeight.w600),
+                        style: themeData.textTheme.bodyLarge,
                       ),
                       const SizedBox(height: 5),
                       TextButton(
@@ -51,25 +56,26 @@ Widget buildUserContain(BuildContext context, bool checkLogin) {
                                     RoundedRectangleBorder(
                                         borderRadius:
                                             BorderRadius.circular(20.0),
-                                        side: const BorderSide(
-                                          color: Colors.white70,
+                                        side: BorderSide(
+                                          color: themeData.colorScheme.onPrimary
+                                              .withAlpha(80),
                                           width: 2,
                                         )))),
                         onPressed: () => {
                           Navigator.of(context).pushNamed('$LoginScreen'),
                         },
                         child: Row(
-                          children: const [
-                            Icon(
+                          children: [
+                            const Icon(
                               Icons.circle,
                               size: 15,
                               color: Colors.red,
                             ),
-                            SizedBox(width: 10),
+                            const SizedBox(width: 10),
                             Text(
                               "Offline",
                               style: TextStyle(
-                                color: Colors.white,
+                                color: themeData.textTheme.bodySmall!.color,
                               ),
                             ),
                           ],
@@ -84,139 +90,128 @@ Widget buildUserContain(BuildContext context, bool checkLogin) {
           Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              Container(
-                padding: const EdgeInsets.only(
-                  left: 20.0,
-                  right: 20.0,
-                ),
-                child: Wrap(
-                  // direction: Axis.vertical,
-                  children: [
-                    InkWell(
-                      onTap: () => {},
-                      child: const ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.transparent,
-                          child: Icon(
-                            Icons.type_specimen,
-                            size: 30,
-                            color: Colors.white,
-                          ),
-                        ),
-                        trailing: Icon(
-                          Icons.navigate_next,
+              Wrap(
+                children: [
+                  InkWell(
+                    onTap: () {
+                      Route route = _createRoute(const FavoriteGenres1());
+                      Navigator.push(context, route);
+                    },
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.transparent,
+                        child: Icon(
+                          Icons.type_specimen,
                           size: 30,
-                          color: Colors.white,
-                        ),
-                        title: Text(
-                          'Favorite music genre',
-                          style: TextStyle(
-                            color: Colors.white,
-                          ),
-                        ),
-                        enabled: true,
-                      ),
-                    ),
-                    InkWell(
-                      onTap: () => {},
-                      child: const ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.transparent,
-                          child: Icon(
-                            Icons.favorite,
-                            size: 30,
-                            color: Colors.white,
-                          ),
-                        ),
-                        trailing: Icon(
-                          Icons.navigate_next,
-                          size: 30,
-                          color: Colors.white,
-                        ),
-                        title: Text(
-                          'List favorite song',
-                          style: TextStyle(
-                            color: Colors.white,
-                          ),
-                        ),
-                        enabled: true,
-                      ),
-                    ),
-                    InkWell(
-                      onTap: () => {},
-                      child: const ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.transparent,
-                          child: Icon(
-                            Icons.access_time_filled,
-                            size: 30,
-                            color: Colors.white,
-                          ),
-                        ),
-                        trailing: Icon(
-                          Icons.navigate_next,
-                          size: 30,
-                          color: Colors.white,
-                        ),
-                        title: Text(
-                          'Recent song',
-                          style: TextStyle(
-                            color: Colors.white,
-                          ),
-                        ),
-                        enabled: true,
-                      ),
-                    ),
-                    InkWell(
-                      onTap: () => {},
-                      child: const ListTile(
-                        leading: CircleAvatar(
-                          backgroundColor: Colors.transparent,
-                          child: Icon(
-                            Icons.saved_search_sharp,
-                            size: 30,
-                            color: Colors.white,
-                          ),
-                        ),
-                        trailing: Icon(
-                          Icons.navigate_next,
-                          size: 30,
-                          color: Colors.white,
-                        ),
-                        title: Text(
-                          'Recent search',
-                          style: TextStyle(
-                            color: Colors.white,
-                          ),
+                          color: themeData.buttonTheme.colorScheme!.secondary,
                         ),
                       ),
+                      trailing: Icon(
+                        Icons.navigate_next,
+                        size: 30,
+                        color: themeData.buttonTheme.colorScheme!.secondary,
+                      ),
+                      title: Text(
+                        'Favorite music genre',
+                        style: themeData.textTheme.bodyMedium,
+                      ),
+                      enabled: true,
                     ),
-                  ],
-                ),
+                  ),
+                  InkWell(
+                    onTap: () {
+                      Route route = _createRoute(const FavoriteSongs1());
+                      Navigator.push(context, route);
+                    },
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.transparent,
+                        child: Icon(
+                          Icons.favorite,
+                          size: 30,
+                          color: themeData.buttonTheme.colorScheme!.secondary,
+                        ),
+                      ),
+                      trailing: Icon(
+                        Icons.navigate_next,
+                        size: 30,
+                        color: themeData.buttonTheme.colorScheme!.secondary,
+                      ),
+                      title: Text(
+                        'List favorite song',
+                        style: themeData.textTheme.bodyMedium,
+                      ),
+                      enabled: true,
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () {},
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.transparent,
+                        child: Icon(
+                          Icons.access_time_filled,
+                          size: 30,
+                          color: themeData.buttonTheme.colorScheme!.secondary,
+                        ),
+                      ),
+                      trailing: Icon(
+                        Icons.navigate_next,
+                        size: 30,
+                        color: themeData.buttonTheme.colorScheme!.secondary,
+                      ),
+                      title: Text(
+                        'Recent song',
+                        style: themeData.textTheme.bodyMedium,
+                      ),
+                      enabled: true,
+                    ),
+                  ),
+                  InkWell(
+                    onTap: () {
+                      Route route = _createRoute(const RecentSearch());
+                      Navigator.push(context, route);
+                    },
+                    child: ListTile(
+                      leading: CircleAvatar(
+                        backgroundColor: Colors.transparent,
+                        child: Icon(
+                          Icons.saved_search_sharp,
+                          size: 30,
+                          color: themeData.buttonTheme.colorScheme!.secondary,
+                        ),
+                      ),
+                      trailing: Icon(
+                        Icons.navigate_next,
+                        size: 30,
+                        color: themeData.buttonTheme.colorScheme!.secondary,
+                      ),
+                      title: Text(
+                        'Recent search',
+                        style: themeData.textTheme.bodyMedium,
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const Divider(
-                height: 10,
+              Divider(
                 thickness: 2,
-                indent: 20,
-                endIndent: 20,
-                color: Colors.white70,
+                color: themeData.colorScheme.onPrimary.withAlpha(10),
               ),
               Container(
-                padding: const EdgeInsets.only(
-                  top: 30.0,
-                  left: 20.0,
-                  right: 20.0,
-                ),
+                padding: const EdgeInsets.only(top: 30.0),
                 child: ElevatedButton(
                   style: ButtonStyle(
                     padding: MaterialStateProperty.all(
                         const EdgeInsets.only(top: 10.0, bottom: 10.0)),
-                    backgroundColor: MaterialStateProperty.all(Colors.white12),
+                    backgroundColor: MaterialStateProperty.all(
+                      themeData.colorScheme.secondary.withAlpha(10),
+                    ),
                     shape: MaterialStateProperty.all<RoundedRectangleBorder>(
                         RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(10.0),
-                            side: const BorderSide(
-                              color: Colors.white70,
+                            side: BorderSide(
+                              color: themeData.colorScheme.background,
                               width: 2,
                             ))),
                   ),
@@ -226,16 +221,13 @@ Widget buildUserContain(BuildContext context, bool checkLogin) {
                   },
                   child: Row(
                     mainAxisAlignment: MainAxisAlignment.center,
+                    crossAxisAlignment: CrossAxisAlignment.center,
                     children: [
                       const Icon(Icons.logout),
                       const SizedBox(width: 10),
                       Text(
                         checkLogin ? "Log out" : "Log in",
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontSize: 25,
-                          fontWeight: FontWeight.w800,
-                        ),
+                        style: themeData.textTheme.bodyLarge,
                       )
                     ],
                   ),
@@ -246,5 +238,19 @@ Widget buildUserContain(BuildContext context, bool checkLogin) {
         ],
       ),
     ),
+  );
+}
+
+Route _createRoute(Widget widget) {
+  return PageRouteBuilder(
+    pageBuilder: (context, animation, secondaryAnimation) => widget,
+    transitionDuration: const Duration(milliseconds: 800),
+    reverseTransitionDuration: const Duration(milliseconds: 500),
+    transitionsBuilder: (context, animation, secondaryAnimation, child) {
+      return FadeTransition(
+        opacity: animation,
+        child: child,
+      );
+    },
   );
 }

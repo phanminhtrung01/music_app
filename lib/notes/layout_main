@@ -1,0 +1,126 @@
+  Widget buildLayoutMain(
+    BuildContext context,
+    double heightContext,
+    bool valueCheckPlay,
+  ) {
+    const double heightHeader = 80.0;
+    const double heightPadding = 25.0;
+    const double heightBottomNaviBar = 110.0;
+    const double heightPlayerSong = 130.0;
+    final ThemeData themeData = Theme.of(context);
+
+    return SingleChildScrollView(
+      child: Column(
+        children: [
+          Container(
+            height: 80,
+            padding: const EdgeInsets.only(top: 25, right: 10, left: 10),
+            child: ElevatedButton(
+              onPressed: () => {
+                _animationController.forward(),
+                setState(
+                  () {
+                    checkSearch = !checkSearch;
+                  },
+                ),
+              },
+              style: ButtonStyle(
+                padding: MaterialStateProperty.all(const EdgeInsets.all(0)),
+                backgroundColor: MaterialStateProperty.all(Colors.white12),
+                shape: MaterialStateProperty.all(RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(_radiusBorder),
+                )),
+              ),
+              child: Row(
+                children: [
+                  Expanded(
+                    child: Stack(
+                      children: [
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          child: AnimatedIcon(
+                            icon: AnimatedIcons.menu_arrow,
+                            progress: _animationController,
+                          ),
+                        ),
+                        IconButton(
+                            onPressed: () => {
+                                  _scaffoldKey.currentState!.openDrawer(),
+                                },
+                            splashRadius: _radiusBorder,
+                            icon: const Icon(
+                              Icons.menu,
+                              color: Colors.transparent,
+                            )),
+                      ],
+                    ),
+                  ),
+                  Flexible(
+                    flex: 6,
+                    child: TextField(
+                      obscureText: true,
+                      cursorWidth: 3,
+                      showCursor: true,
+                      style: const TextStyle(
+                        fontSize: 18,
+                      ),
+                      decoration: InputDecoration(
+                        border: InputBorder.none,
+                        focusedBorder: InputBorder.none,
+                        contentPadding: const EdgeInsets.all(15),
+                        suffixIcon: IconButton(
+                          splashRadius: _radiusBorder,
+                          onPressed: () => {},
+                          icon: const Icon(Icons.search),
+                        ),
+                        focusColor: Colors.white,
+                        enabled: false,
+                        hintText: "Enter your song",
+                        hintStyle: TextStyle(
+                          color: themeData.hintColor,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ),
+          CarouselSlider(
+            carouselController: _carouselController,
+            options: CarouselOptions(
+                height: valueCheckPlay
+                    ? heightContext -
+                        heightHeader -
+                        heightPadding -
+                        heightBottomNaviBar -
+                        heightPlayerSong
+                    : heightContext -
+                        heightHeader -
+                        heightPadding -
+                        heightBottomNaviBar,
+                initialPage: indexPage,
+                viewportFraction: 1,
+                padEnds: false,
+                enableInfiniteScroll: false,
+                onPageChanged: (index, __) {
+                  indexPage = index;
+                  setState(() {});
+                }),
+            items: [
+              SingleChildScrollView(
+                child: buildHomeContain(context),
+              ),
+              MusicContain(
+                appManager: _appManager,
+                songRepository: _songRepository,
+                audioPlayerManager: _audioPlayerManager,
+              ),
+              buildAlContain(context, _audioPlayerManager),
+              buildUserContain(context, false),
+            ],
+          ),
+        ],
+      ),
+    );
+  }

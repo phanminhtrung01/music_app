@@ -10,5 +10,5 @@ class GetInfo {
   static const String infoGenre = "genre/get/info";
 
   //?idSong
-  static const String infoLyric = "lyric/get/lyric";
+  static const String infoLyric = "get/info/source/lyric";
 }

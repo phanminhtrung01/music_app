@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:just_audio/just_audio.dart';
 import 'package:music_app/model/object_json/info_song.dart';
+import 'package:music_app/model/parse_lyric.dart';
 import 'package:music_app/model/song.dart';
 import 'package:music_app/notifiers/play_button_notifier.dart';
 import 'package:music_app/notifiers/progress_notifier.dart';
@@ -8,10 +9,11 @@ import 'package:music_app/notifiers/repeat_button_notifier.dart';
 import 'package:music_app/repository/song_repository.dart';
 
 class AudioPlayerManager {
-  final currentSongNotifier = ValueNotifier<Song>(Song(data: ""));
-  final playlistNotifier = ValueNotifier<List<Song>>([]);
-  final indexCurrentOnline = ValueNotifier<int>(0);
-  final playlistOnlineNotifier = ValueNotifier<List<InfoSong>>([]);
+  final currentSongNotifier = ValueNotifier<Song>(Song(id: ""));
+  final indexCurrentSongNotifier = ValueNotifier<int>(0);
+  final playlistNotifier = ValueNotifier<List<Song>>(List<Song>.empty());
+  final playlistOnlineNotifier =
+  ValueNotifier<List<InfoSong>>(List<InfoSong>.empty());
   final progressNotifier = ProgressNotifier();
   final repeatButtonNotifier = RepeatButtonNotifier();
   final isFirstSongNotifier = ValueNotifier<bool>(true);
@@ -21,6 +23,11 @@ class AudioPlayerManager {
   final isPlayOrNotPlayNotifier = ValueNotifier<bool>(false);
   final isChangePlaylist = ValueNotifier<bool>(false);
   final isPlayOnOffline = ValueNotifier<bool>(false);
+  final indexCurrentText = ValueNotifier<int>(-1);
+  final parseLyricsText =
+  ValueNotifier<List<ParseLyric>>(List<ParseLyric>.empty());
+  final parseLyricsWord =
+  ValueNotifier<List<List<ParseLyric>>>(List<List<ParseLyric>>.empty());
 
   //final SongRepository repository;
   late AudioPlayer audioPlayer;
@@ -37,6 +44,8 @@ class AudioPlayerManager {
     _listenForChangesInTotalDuration();
     _listenForChangesInSequenceState();
   }
+
+  void listenIsPlay(bool value) {}
 
   // TODO: play song
   void playMusic(int indexSong) async {
@@ -55,30 +64,44 @@ class AudioPlayerManager {
       children: songs.map((song) {
         return !check
             ? AudioSource.file(
-                song.data,
-                tag: song, // changed
-              )
+          song.data!,
+          tag: song, // changed
+        )
             : AudioSource.uri(
-                Uri.parse(song.data),
-                tag: song,
-              );
+          Uri.parse(song.data ?? ''),
+          tag: song,
+        );
       }).toList(),
     );
 
     await audioPlayer
         .setAudioSource(playlist,
-            initialIndex: index, initialPosition: Duration.zero)
+        initialIndex: index, initialPosition: Duration.zero)
         .catchError((error) {
       // catch load errors: 404, invalid url ...
       debugPrint("An error occurred $error");
     });
 
-    indexCurrentOnline.value = index;
     playlistNotifier.value = songs;
   }
 
+  int _getPositionParse(List<ParseLyric> parseLyrics, ParseLyric parseLyric) {
+    return parseLyrics.indexOf(parseLyric);
+  }
+
+  int _getIndexCurrent(Duration event) {
+    int index = -1;
+    try {
+      index = parseLyricsText.value.indexWhere((element) {
+        return element.durationStart > event;
+      });
+    } catch (_) {}
+
+    return index;
+  }
+
   void _listenForChangesInPlayerState() {
-    audioPlayer.playerStateStream.listen((playerState) {
+    audioPlayer.playerStateStream.listen((playerState) async {
       final isPlaying = playerState.playing;
       final processingState = playerState.processingState;
       if (processingState == ProcessingState.loading ||
@@ -103,6 +126,28 @@ class AudioPlayerManager {
         buffered: oldState.buffered,
         total: oldState.total,
       );
+
+      final int indexCurrent = _getIndexCurrent(position);
+      try {
+        ParseLyric parseLyricText1 =
+        parseLyricsText.value[indexCurrent == -1 ? 0 : indexCurrent];
+        ParseLyric parseLyricText2 =
+        parseLyricsText.value[indexCurrent > 0 ? indexCurrent - 1 : 0];
+        int c1 = parseLyricText1.durationStart.inMilliseconds;
+        int c2 = parseLyricText2.durationStart.inMilliseconds;
+        int d1 = (position.inMilliseconds - c1).abs();
+        int d2 = (position.inMilliseconds - c2).abs();
+
+        if ((d1 >= 0 && d1 < 150)) {
+          indexCurrentText.value =
+              _getPositionParse(parseLyricsText.value, parseLyricText1);
+          debugPrint(d1.toString());
+        } else if ((d2 >= 0 && d2 < 150)) {
+          indexCurrentText.value =
+              _getPositionParse(parseLyricsText.value, parseLyricText2);
+          debugPrint(d2.toString());
+        }
+      } catch (_) {}
     });
   }
 
@@ -134,18 +179,16 @@ class AudioPlayerManager {
       // TODO: update current song info
       IndexedAudioSource? currentItem = sequenceState.currentSource;
       Song song = currentItem?.tag as Song;
-      if (song.data.isEmpty) {
-        currentSongNotifier.value = Song(data: "");
+      if (song.data!.isEmpty) {
+        currentSongNotifier.value = Song(id: "");
         song = await SongRepository.getSourceSongById(song);
-        if (song.data.isEmpty) {
+        if (song.data!.isEmpty) {
           audioPlayer.seekToNext();
         }
       }
-
       currentItem = sequenceState.currentSource;
       song = currentItem?.tag as Song;
       currentSongNotifier.value = song;
-
       // TODO: update playlist
       final playlist = sequenceState.effectiveSequence;
       final songs = playlist.map((item) => item.tag as Song).toList();
@@ -154,6 +197,8 @@ class AudioPlayerManager {
       isShuffleModeEnabledNotifier.value = sequenceState.shuffleModeEnabled;
       // TODO: update previous and next buttons
     });
+
+    debugPrint("Change Song!");
   }
 
   void play() async {

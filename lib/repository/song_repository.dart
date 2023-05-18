@@ -78,7 +78,7 @@ class SongRepository {
       BehaviorSubject();
   final String urlApiMusicPredict =
       'https://fbe8-2001-ee0-5004-bc20-984-9817-b6a-8719.ap.ngrok.io/';
-  static const String hostApi = '18.143.123.217';
+  static const String hostApi = 'musicappapi-production.up.railway.app';
   static const String pathApi = 'pmdv/ma/';
 
   SongRepository() {
@@ -86,11 +86,13 @@ class SongRepository {
   }
 
   void _init() async {
-    //songsFuture = queryListSongLocal();
-    //songsFuture.addStream(queryListSongLocal());
+    // songsFuture = queryListSongLocal();
+    // songsFuture.addStream(queryListSongLocal());
     queryListSongLocal();
     queryListSongNewReleaseSongOnline().then((value) async {
       songs.addAll(await getAllSourceSong(value));
+    }).onError((error, stackTrace) {
+      songs.clear();
     });
 
     if (!streamPlaylists.hasListener) {
@@ -240,7 +242,7 @@ class SongRepository {
     late int predict = -1;
     late int statusCode;
     try {
-      File fileSong = File(song.data);
+      File fileSong = File(song.data!);
       request.files.add(http.MultipartFile(
         'files',
         fileSong.readAsBytes().asStream(),
@@ -371,15 +373,18 @@ class SongRepository {
   Future<List<InfoSong>> queryListSongNewReleaseSongOnline() async {
     List<InfoSong> items = List.empty(growable: true);
     ResponseSong? responseF = await getData(SearchSong.getSongNewRelease, {});
-
-    if (responseF != null) {
-      final int status = responseF.status;
-      if (status == 200) {
-        List dataJson = responseF.data;
-        items = dataJson.map((data) {
-          return InfoSong.infoSongFromJson(data);
-        }).toList();
+    try {
+      if (responseF != null) {
+        final int status = responseF.status;
+        if (status == 200) {
+          List dataJson = responseF.data;
+          items = dataJson.map((data) {
+            return InfoSong.infoSongFromJson(data);
+          }).toList();
+        }
       }
+    } catch (e) {
+      throw Exception('danh sach rong');
     }
 
     streamNewReleaseSong.sink.add(items);
@@ -391,24 +396,30 @@ class SongRepository {
 
     for (var element in infoSongs) {
       futures.add(getSourceSong(element));
-      // await Isolate.spawn(getSourceSong, [element, receivePort.sendPort]);
     }
-
-    List<Song> results = await Future.wait(futures);
+    List<Song> results = List<Song>.empty();
+    try {
+      results = await Future.wait(futures, eagerError: true);
+    } catch (e) {
+      debugPrint(e.toString());
+    }
     return results;
   }
 
   Future<Song> getSourceSong(InfoSong infoSong) async {
-    Song song = Song(data: "");
+    Song song = Song(id: infoSong.id);
     ResponseSong? responseSong =
         await getData(SearchSong.streamSource, {'id': infoSong.id});
     if (responseSong != null) {
-      var data = responseSong.data;
       try {
+        var data = responseSong.data;
         String data_128 = data['128'];
         song = Song.fromInfoSong(infoSong);
         song.data = data_128;
-      } catch (_) {}
+      } catch (e) {
+        debugPrint('k + ' + e.toString());
+        throw Exception('loi gi do');
+      }
     }
 
     return song;
@@ -429,7 +440,7 @@ class SongRepository {
   }
 
   Future<Song> getSong(String pathFile, String pathFile2) async {
-    Song songResult = Song(data: "");
+    Song songResult = Song(id: '');
     Directory directory = Directory(pathFile2);
     List<FileSystemEntity> files = directory.listSync();
     List<SongModel> songs = await _audioQuery.querySongs(path: directory.path);

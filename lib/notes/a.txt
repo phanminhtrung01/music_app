@@ -1,0 +1,104 @@
+Widget buildHomeContain(BuildContext context) {
+    final ThemeData themeData = Theme.of(context);
+
+    return IntrinsicHeight(
+      child: Column(
+        children: <Widget>[
+          Column(
+            children: [
+              SizedBox(
+                height: 250,
+                width: double.infinity,
+                child: CarouselSlider(
+                  items: imgList
+                      .map(
+                        (e) => Container(
+                          margin: const EdgeInsets.only(
+                            left: 10,
+                            right: 10,
+                          ),
+                          decoration: BoxDecoration(
+                            image: DecorationImage(
+                              image: NetworkImage(e),
+                              fit: BoxFit.cover,
+                            ),
+                            border: Border.all(
+                              width: 2,
+                              color:
+                                  themeData.colorScheme.primary.withAlpha(10),
+                            ),
+                            borderRadius: BorderRadius.circular(20),
+                            boxShadow: [
+                              BoxShadow(
+                                color: themeData.colorScheme.secondary
+                                    .withAlpha(150),
+                                spreadRadius: 2,
+                                blurRadius: 5,
+                                offset: const Offset(0, 4),
+                              ),
+                            ],
+                          ),
+                          child: Container(
+                            padding: const EdgeInsets.only(
+                              left: 10,
+                              top: 10,
+                            ),
+                            width: double.maxFinite,
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  "Ya Ya Ha Ha",
+                                  style: themeData.textTheme.displayLarge,
+                                ),
+                                Text(
+                                  "Na",
+                                  style: themeData.textTheme.displaySmall,
+                                )
+                              ],
+                            ),
+                          ),
+                        ),
+                      )
+                      .toList(),
+                  options: CarouselOptions(
+                      autoPlay: true,
+                      viewportFraction: 1,
+                      onPageChanged: (indexPage, __) {
+                        indexChoose = indexPage;
+                        setState(() {});
+                      }),
+                ),
+              ),
+              CarouselIndicator(
+                count: imgList.length,
+                index: indexChoose,
+                color: themeData.buttonTheme.colorScheme!.secondary,
+                activeColor: themeData.colorScheme.onPrimary.withAlpha(80),
+                height: 5,
+                width: 25,
+                space: 10,
+              ),
+            ],
+          ),
+          const SizedBox(
+            height: 30,
+            // child: TrackWidget(re),
+          ),
+          // Text('$progress%'),
+          SquareTrackWidget(
+            appManager: _appManager,
+            title: const ["New Release Song", "VietNam"],
+            repository: _songRepository,
+            audioPlayerManager: _audioPlayerManager,
+          ),
+          const RectangleTrack(
+            titles: ["New Release Song", "VietNam"],
+          ),
+          const CircleTrack(
+            titles: ["New Release Song", "VietNam"],
+          ),
+        ],
+      ),
+    );
+  }

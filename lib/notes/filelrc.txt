@@ -1,0 +1,60 @@
+final test = [
+    ParseLyric(
+      text: 'Bỗng',
+      durationStart: const Duration(milliseconds: 26910),
+      durationEnd: const Duration(milliseconds: 27420),
+    ),
+    ParseLyric(
+      text: 'đêm',
+      durationStart: const Duration(milliseconds: 27420),
+      durationEnd: const Duration(milliseconds: 27420),
+    ),
+    ParseLyric(
+      text: 'nay',
+      durationStart: const Duration(milliseconds: 27420),
+      durationEnd: const Duration(milliseconds: 27950),
+    ),
+    ParseLyric(
+      text: 'hiu',
+      durationStart: const Duration(milliseconds: 27950),
+      durationEnd: const Duration(milliseconds: 27950),
+    ),
+    ParseLyric(
+      text: 'quạnh',
+      durationStart: const Duration(milliseconds: 27950),
+      durationEnd: const Duration(milliseconds: 27950),
+    ),
+  ];
+
+  final test1 = [
+    ParseLyric(
+      text: 'Anh',
+      durationStart: const Duration(milliseconds: 29010),
+      durationEnd: const Duration(milliseconds: 29570),
+    ),
+    ParseLyric(
+      text: 'thấy',
+      durationStart: const Duration(milliseconds: 29570),
+      durationEnd: const Duration(milliseconds: 30100),
+    ),
+    ParseLyric(
+      text: 'đôi',
+      durationStart: const Duration(milliseconds: 30100),
+      durationEnd: const Duration(milliseconds: 30100),
+    ),
+    ParseLyric(
+      text: 'vai',
+      durationStart: const Duration(milliseconds: 30100),
+      durationEnd: const Duration(milliseconds: 30630),
+    ),
+    ParseLyric(
+      text: 'cô',
+      durationStart: const Duration(milliseconds: 30630),
+      durationEnd: const Duration(milliseconds: 31160),
+    ),
+    ParseLyric(
+      text: 'lạnh',
+      durationStart: const Duration(milliseconds: 31160),
+      durationEnd: const Duration(milliseconds: 32220),
+    ),
+  ];

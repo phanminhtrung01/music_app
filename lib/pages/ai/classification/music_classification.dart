@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:music_app/item/item_classifi.dart';
 import 'package:music_app/pages/play/play_home.dart';
+import 'package:music_app/repository/app_manager.dart';
 import 'package:music_app/repository/audio_player.dart';
 import 'package:music_app/repository/song_repository.dart';
 import 'package:on_audio_query/on_audio_query.dart';
@@ -12,10 +13,12 @@ class MusicClassification extends StatefulWidget {
     Key? key,
     required this.songRepository,
     required this.audioPlayerManager,
+    required this.appManager,
   }) : super(key: key);
 
   final SongRepository songRepository;
   final AudioPlayerManager audioPlayerManager;
+  final AppManager appManager;
 
   @override
   State<MusicClassification> createState() => _MusicClassificationState();
@@ -30,6 +33,8 @@ class _MusicClassificationState extends State<MusicClassification> {
   SongRepository get _songRepository => widget.songRepository;
 
   AudioPlayerManager get _audioPlayerManager => widget.audioPlayerManager;
+
+  AppManager get _appManager => widget.appManager;
 
   Future<List<PlaylistModel>> queryListPlaylists() async {
     return await _audioQuery.queryPlaylists(
@@ -85,13 +90,15 @@ class _MusicClassificationState extends State<MusicClassification> {
 
   @override
   Widget build(BuildContext context) {
+    final ThemeData themeData = Theme.of(context);
+
     return Scaffold(
       appBar: AppBar(
-        backgroundColor: Colors.white12,
+        backgroundColor: themeData.colorScheme.background,
         centerTitle: true,
         title: const Text('Music classification'),
       ),
-      backgroundColor: Colors.white12,
+      backgroundColor: themeData.colorScheme.background,
       body: SafeArea(
         child: StreamBuilder<List<PlaylistGenreSong>>(
             stream: _songRepository.streamPlaylists.stream,
@@ -101,16 +108,21 @@ class _MusicClassificationState extends State<MusicClassification> {
                 try {
                   _songRepository.streamPlaylists.close();
                 } catch (_) {}
-                return const Center(
-                  child: CircularProgressIndicator(),
+                return Center(
+                  child: CircularProgressIndicator(
+                    color: themeData.buttonTheme.colorScheme!.primary,
+                  ),
                 );
               } else if (streamPlaylists.requireData.isEmpty) {
                 _songRepository.streamPlaylists.stream.drain();
                 try {
                   _songRepository.streamPlaylists.close();
                 } catch (_) {}
-                return const Center(
-                  child: Text("Not Found!"),
+                return Center(
+                  child: Text(
+                    "Not Found!",
+                    style: themeData.textTheme.displayMedium,
+                  ),
                 );
               } else {
                 late List<PlaylistGenreSong> playlists =
@@ -149,15 +161,16 @@ class _MusicClassificationState extends State<MusicClassification> {
                                       MaterialPageRoute(
                                         builder: (context) =>
                                             ItemClassification(
-                                          audioPlayerManager:
+                                              appManager: _appManager,
+                                              audioPlayerManager:
                                               _audioPlayerManager,
-                                          repository: _songRepository,
-                                          indexPlaylist: indexPlaylist,
-                                        ),
+                                              repository: _songRepository,
+                                              indexPlaylist: indexPlaylist,
+                                            ),
                                       ),
                                     );
                                     _audioPlayerManager.isChangePlaylist.value =
-                                        true;
+                                    true;
                                   },
                                   child: Column(
                                     children: [
@@ -166,7 +179,7 @@ class _MusicClassificationState extends State<MusicClassification> {
                                         padding: const EdgeInsets.all(10),
                                         decoration: BoxDecoration(
                                           borderRadius:
-                                              BorderRadius.circular(20),
+                                          BorderRadius.circular(20),
                                           color: Colors.white54,
                                           image: DecorationImage(
                                             image: AssetImage(
@@ -198,8 +211,9 @@ class _MusicClassificationState extends State<MusicClassification> {
                         ),
                         _audioPlayerManager.isPlayOrNotPlayNotifier.value
                             ? PlayerHome(
-                                audioPlayerManager: _audioPlayerManager,
-                              )
+                          appManager: _appManager,
+                          audioPlayerManager: _audioPlayerManager,
+                        )
                             : Container(),
                       ],
                     );

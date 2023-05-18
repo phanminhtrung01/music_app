@@ -18,7 +18,9 @@ class SearchPage extends StatelessWidget {
           children: [
             IconButton(
                 splashRadius: _radiusBorder,
-                onPressed: () => {Navigator.of(context).pop()},
+                onPressed: () {
+                  Navigator.of(context).pop();
+                },
                 icon: const Icon(Icons.arrow_back_sharp)),
             Expanded(
               child: TextField(

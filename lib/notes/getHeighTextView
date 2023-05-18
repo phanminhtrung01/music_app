@@ -1,0 +1,15 @@
+  double _getHeightWidgetText(TextStyle? textStyle) {
+    final textSpan = TextSpan(
+      text: 'The text snippet takes the height '
+          'of the widget with a custom FontSize',
+      style: textStyle,
+    );
+    final textPainter = TextPainter(
+      text: textSpan,
+      textDirection: TextDirection.ltr,
+      maxLines: 2,
+    );
+    textPainter.layout(minWidth: 0, maxWidth: 50);
+
+    return textPainter.height;
+  }

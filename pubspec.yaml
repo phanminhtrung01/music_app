@@ -58,6 +58,9 @@ dependencies:
   flutter_lyric: ^2.0.4+6
   cached_network_image: ^3.2.3
   transparent_image: ^2.0.1
+  animated_text_kit: ^4.2.2
+  lecle_downloads_path_provider: ^0.0.2+8
+  flip_card: ^0.7.0
 
 dev_dependencies:
   flutter_test:
