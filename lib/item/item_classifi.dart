@@ -6,6 +6,7 @@ import 'package:music_app/pages/play/play_home.dart';
 import 'package:music_app/repository/app_manager.dart';
 import 'package:music_app/repository/audio_player.dart';
 import 'package:music_app/repository/song_repository.dart';
+import 'package:music_app/repository/user_manager.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 
 import '../model/song.dart';
@@ -14,6 +15,7 @@ class ItemClassification extends StatefulWidget {
   final SongRepository repository;
   final AudioPlayerManager audioPlayerManager;
   final AppManager appManager;
+  final UserManager userManager;
   final int indexPlaylist;
 
   const ItemClassification({
@@ -22,6 +24,7 @@ class ItemClassification extends StatefulWidget {
     required this.indexPlaylist,
     required this.audioPlayerManager,
     required this.appManager,
+    required this.userManager,
   }) : super(key: key);
 
   @override
@@ -43,6 +46,8 @@ class _ItemClassificationState extends State<ItemClassification> {
   AudioPlayerManager get _audioPlayerManager => widget.audioPlayerManager;
 
   AppManager get _appManager => widget.appManager;
+
+  UserManager get _userManager => widget.userManager;
 
   @override
   void initState() {
@@ -213,34 +218,23 @@ class _ItemClassificationState extends State<ItemClassification> {
                                         // Splash color
                                         onTap: canModeSelect
                                             ? () {
-                                                if (_audioPlayerManager
-                                                    .isChangePlaylist.value) {
-                                                  _audioPlayerManager
-                                                      .setInitialPlaylist(
-                                                          playlist.songs,
-                                                          false,
-                                                          0);
-
-                                                  if (_audioPlayerManager
-                                                      .isPlayOrNotPlayNotifier
-                                                      .value) {
-                                                    _audioPlayerManager
-                                                        .isPlayOrNotPlayNotifier
-                                                        .value = true;
-                                                  }
-                                                }
-
+                                                _audioPlayerManager
+                                                    .isPlayOnOffline
+                                                    .value = false;
+                                                _audioPlayerManager
+                                                    .setInitialPlaylist(
+                                                        playlist.songs, 0);
                                                 _audioPlayerManager
                                                     .playMusic(0);
-                                                _audioPlayerManager
-                                                    .indexCurrentSongNotifier
-                                                    .value = 0;
 
                                                 Navigator.of(context).push(
                                                   MaterialPageRoute(
                                                     builder: (context) =>
                                                         MusicPlayer(
+                                                      userManager: _userManager,
                                                       appManager: _appManager,
+                                                      songRepository:
+                                                          _songRepository,
                                                       audioPlayerManager:
                                                           _audioPlayerManager,
                                                     ),
@@ -387,7 +381,9 @@ class _ItemClassificationState extends State<ItemClassification> {
                         ),
                         _audioPlayerManager.isPlayOrNotPlayNotifier.value
                             ? PlayerHome(
+                                userManager: _userManager,
                                 appManager: _appManager,
+                                songRepository: _songRepository,
                                 audioPlayerManager: _audioPlayerManager,
                               )
                             : Container(),

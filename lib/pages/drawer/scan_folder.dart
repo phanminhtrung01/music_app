@@ -1,63 +1,93 @@
-import 'dart:io';
-
 import 'package:flutter/material.dart';
-import 'package:path/path.dart';
-import 'package:path_provider/path_provider.dart';
+import 'package:music_app/pages/drawer/item_folder.dart';
+import 'package:music_app/repository/app_manager.dart';
+import 'package:music_app/repository/audio_player.dart';
+import 'package:music_app/repository/song_repository.dart';
+import 'package:music_app/repository/user_manager.dart';
 
-class FolderPicker extends StatefulWidget {
-  const FolderPicker({super.key});
+class ScanFolder extends StatefulWidget {
+  final SongRepository songRepository;
+  final AppManager appManager;
+  final UserManager userManager;
+  final AudioPlayerManager audioPlayerManager;
+
+  const ScanFolder({
+    Key? key,
+    required this.songRepository,
+    required this.appManager,
+    required this.userManager,
+    required this.audioPlayerManager,
+  }) : super(key: key);
 
   @override
-  State<FolderPicker> createState() => _FolderPickerState();
+  State<ScanFolder> createState() => _ScanFolderState();
 }
 
-class _FolderPickerState extends State<FolderPicker> {
-  late Directory _directory;
-  late List<FileSystemEntity> _folders;
+class _ScanFolderState extends State<ScanFolder> {
+  SongRepository get _songRepository => widget.songRepository;
 
-  @override
-  void initState() {
-    super.initState();
-    _folders = [];
-    _initDirectory();
-  }
+  AudioPlayerManager get _audioPlayerManager => widget.audioPlayerManager;
 
-  void _initDirectory() async {
-    Directory appDirectory = await getApplicationDocumentsDirectory();
-    setState(() {
-      _directory = appDirectory;
-      _folders = _directory.listSync().whereType<Directory>().toList();
-    });
-  }
+  UserManager get _userManager => widget.userManager;
+
+  AppManager get _appManager => widget.appManager;
 
   @override
   Widget build(BuildContext context) {
-    final ThemeData themeData = Theme.of(context);
+    ThemeData themeData = Theme.of(context);
 
     return Scaffold(
-      backgroundColor: themeData.colorScheme.background,
       appBar: AppBar(
-        title: const Text('Select a folder'),
+        title: const Text('Scan Folder'),
+        centerTitle: true,
       ),
-      body: ListView.builder(
-        itemCount: _folders.length,
-        itemBuilder: (context, index) {
-          Directory folder = _folders[index] as Directory;
-          return ListTile(
-            title: Text(
-              basename(folder.path),
-              style: themeData.textTheme.bodyMedium,
-            ),
-            subtitle: Text(
-              folder.path,
-              style: const TextStyle(fontSize: 14.0),
-            ),
-            leading: const Icon(Icons.folder),
-            onTap: () {
-              Navigator.pop(context, folder.path);
-            },
-          );
-        },
+      backgroundColor: themeData.colorScheme.background,
+      body: SafeArea(
+        child: ValueListenableBuilder(
+          valueListenable: _songRepository.pathsContainSong,
+          builder: (_, valuePaths, __) {
+            if (valuePaths.isEmpty) {}
+
+            return Container(
+              padding: const EdgeInsets.all(10),
+              child: Column(
+                children: [
+                  Flexible(
+                    child: ListView.separated(
+                      itemCount: valuePaths.length,
+                      separatorBuilder: (_, __) {
+                        return const Divider(
+                          thickness: 2,
+                        );
+                      },
+                      itemBuilder: (_, index) {
+                        String file = valuePaths[index];
+                        return ListTile(
+                          onTap: () {
+                            _songRepository.querySongsPath(file);
+                            Route route = _appManager.createRouteUpDown(
+                              DirectoryList(
+                                appManager: _appManager,
+                                audioPlayerManager: _audioPlayerManager,
+                                songRepository: _songRepository,
+                                userManager: _userManager,
+                              ),
+                            );
+                            Navigator.push(context, route);
+                          },
+                          title: Text(
+                            file,
+                            style: themeData.textTheme.bodyMedium,
+                          ),
+                        );
+                      },
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        ),
       ),
     );
   }

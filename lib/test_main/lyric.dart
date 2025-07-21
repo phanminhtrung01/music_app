@@ -19,27 +19,19 @@ class LyricPage extends StatefulWidget {
 
 class _LyricPageState extends State<LyricPage>
     with AutomaticKeepAliveClientMixin {
-  late ScrollController _controller;
+  final ScrollController _scrollController = ScrollController();
+  final ValueNotifier<double> _valueOffset = ValueNotifier(0);
 
   @override
   void initState() {
     // TODO: implement initState
-    _controller = ScrollController();
+    _scrollController.addListener(() {
+      _valueOffset.value = _scrollController.offset;
+    });
     super.initState();
   }
 
-  void scrollToIndex(int index, Duration duration) {
-    double position = index * 50 - 30;
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _controller.animateTo(
-        position,
-        duration: duration,
-        curve: Curves.easeOut,
-      );
-    });
-  }
-
-  final bool possibleScroll = true;
+  final ValueNotifier<bool> possibleScroll = ValueNotifier(true);
 
   AudioPlayerManager get _audioPlayerManager => widget.audioPlayerManager;
 
@@ -52,7 +44,7 @@ class _LyricPageState extends State<LyricPage>
   @override
   void dispose() {
     // TODO: implement dispose
-    _controller.dispose();
+    _scrollController.dispose();
     super.dispose();
   }
 
@@ -65,18 +57,16 @@ class _LyricPageState extends State<LyricPage>
       valueListenable: _audioPlayerManager.indexCurrentText,
       builder: (_, indexValueText, __) {
         if (indexValueText == -1) {
-          scrollToIndex(0, const Duration(seconds: 3));
+          _scrollToIndex(0, const Duration(seconds: 3));
         }
 
         return ListView.separated(
-          controller: _controller,
+          controller: _scrollController,
           addAutomaticKeepAlives: false,
           padding: const EdgeInsets.symmetric(
             horizontal: 20,
             vertical: 30,
           ),
-          // itemScrollController: _itemScrollController,
-          // itemPositionsListener: _itemPositionsListener,
           itemCount: _parseLyricsText.length,
           separatorBuilder: (_, __) {
             return const Divider(
@@ -92,8 +82,8 @@ class _LyricPageState extends State<LyricPage>
             Duration durationActive =
                 parseLyricText.durationEnd - parseLyricText.durationStart;
 
-            if (possibleScroll && indexValueText > 3) {
-              scrollToIndex(indexValueText, durationActive);
+            if (possibleScroll.value && indexValueText > 3) {
+              _scrollToIndex(indexValueText, durationActive);
             }
 
             if (indexText != indexValueText) {
@@ -130,4 +120,14 @@ class _LyricPageState extends State<LyricPage>
   @override
   // TODO: implement wantKeepAlive
   bool get wantKeepAlive => true;
+
+  void _scrollToIndex(int index, Duration duration) {
+    _scrollController
+        .animateTo(
+          index * 78,
+          duration: duration,
+          curve: Curves.linear,
+        )
+        .catchError((_) => {});
+  }
 }

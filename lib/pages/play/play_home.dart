@@ -1,19 +1,26 @@
+import 'package:audio_video_progress_bar/audio_video_progress_bar.dart';
 import 'package:flutter/material.dart';
 import 'package:music_app/pages/play/music_player.dart';
 import 'package:music_app/repository/app_manager.dart';
 import 'package:music_app/repository/audio_player.dart';
 import 'package:music_app/repository/audio_player_manager.dart';
+import 'package:music_app/repository/song_repository.dart';
+import 'package:music_app/repository/user_manager.dart';
 import 'package:text_scroll/text_scroll.dart';
 import 'package:transparent_image/transparent_image.dart';
 
 class PlayerHome extends StatefulWidget {
   final AudioPlayerManager audioPlayerManager;
+  final SongRepository songRepository;
   final AppManager appManager;
+  final UserManager userManager;
 
   const PlayerHome({
     super.key,
     required this.audioPlayerManager,
     required this.appManager,
+    required this.userManager,
+    required this.songRepository,
   });
 
   @override
@@ -23,7 +30,11 @@ class PlayerHome extends StatefulWidget {
 class _PlayerHomeState extends State<PlayerHome> {
   AudioPlayerManager get _audioPlayerManager => widget.audioPlayerManager;
 
+  SongRepository get _songRepository => widget.songRepository;
+
   AppManager get _appManager => widget.appManager;
+
+  UserManager get _userManager => widget.userManager;
 
   @override
   void initState() {
@@ -40,14 +51,15 @@ class _PlayerHomeState extends State<PlayerHome> {
     return InkWell(
       borderRadius: BorderRadius.circular(20),
       onTap: () {
-        Navigator.of(context).push(
-          MaterialPageRoute(
-            builder: (context) => MusicPlayer(
-              appManager: _appManager,
-              audioPlayerManager: _audioPlayerManager,
-            ),
+        Route route = _appManager.createRouteUpDown(
+          MusicPlayer(
+            userManager: _userManager,
+            appManager: _appManager,
+            songRepository: _songRepository,
+            audioPlayerManager: _audioPlayerManager,
           ),
         );
+        Navigator.push(context, route);
       },
       child: Container(
         height: _appManager.heightPlayerHome,
@@ -145,46 +157,18 @@ class _PlayerHomeState extends State<PlayerHome> {
                           ],
                         ),
                       ),
-                      Row(
-                        children: [
-                          PreviousSongButton(
-                            iconActive: Icon(
-                              Icons.skip_previous,
-                              size: 30,
-                              color: themeData.buttonTheme.colorScheme!.primary,
-                            ),
-                            iconNoActive: Icon(
-                              Icons.skip_previous,
-                              size: 30,
-                              color:
-                                  themeData.buttonTheme.colorScheme!.secondary,
-                            ),
-                            audioPlayerManager: _audioPlayerManager,
-                          ),
-                          PlayButton(
-                            color: themeData.buttonTheme.colorScheme!.primary,
-                            size: 25,
-                            audioPlayerManager: _audioPlayerManager,
-                          ),
-                          NextSongButton(
-                            icon: Icon(
-                              Icons.skip_next,
-                              size: 30,
-                              color: themeData.buttonTheme.colorScheme!.primary,
-                            ),
-                            audioPlayerManager: _audioPlayerManager,
-                          ),
-                        ],
-                      ),
                       Flexible(
-                        child: IconButton(
-                          onPressed: () {
-                            _audioPlayerManager.isPlayOrNotPlayNotifier.value =
-                                false;
-                          },
-                          icon: Icon(
-                            Icons.close,
-                            color: themeData.buttonTheme.colorScheme!.primary,
+                        child: Container(
+                          alignment: Alignment.topRight,
+                          child: IconButton(
+                            onPressed: () {
+                              _audioPlayerManager
+                                  .isPlayOrNotPlayNotifier.value = false;
+                            },
+                            icon: Icon(
+                              Icons.close,
+                              color: themeData.buttonTheme.colorScheme!.primary,
+                            ),
                           ),
                         ),
                       )
@@ -207,6 +191,7 @@ class _PlayerHomeState extends State<PlayerHome> {
                     'progressBarColor': themeData.highlightColor,
                     'bufferedBarColor': themeData.focusColor,
                     'thumbColor': themeData.primaryColor,
+                    'timeLabelLocation': TimeLabelLocation.sides,
                     'timeLabelTextStyle': themeData.textTheme.bodySmall,
                   },
                   audioPlayerManager: _audioPlayerManager,

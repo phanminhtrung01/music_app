@@ -1,14 +1,21 @@
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:flutter/material.dart';
-import 'package:music_app/item/album.dart';
+import 'package:music_app/model/object_json/info_song.dart';
+import 'package:music_app/notifiers/play_button_notifier.dart';
+import 'package:music_app/pages/play/music_player.dart';
 import 'package:music_app/repository/app_manager.dart';
 import 'package:music_app/repository/audio_player.dart';
 import 'package:music_app/repository/song_repository.dart';
+import 'package:music_app/repository/user_manager.dart';
+
+import '../model/song.dart';
 
 class RectangleTrack extends StatelessWidget {
   final List<String> titles;
   final SongRepository songRepository;
   final AppManager appManager;
   final AudioPlayerManager audioPlayerManager;
+  final UserManager userManager;
 
   const RectangleTrack({
     Key? key,
@@ -16,6 +23,7 @@ class RectangleTrack extends StatelessWidget {
     required this.appManager,
     required this.songRepository,
     required this.audioPlayerManager,
+    required this.userManager,
   }) : super(key: key);
 
   List<String> get _titles => titles;
@@ -26,82 +34,174 @@ class RectangleTrack extends StatelessWidget {
 
   AudioPlayerManager get _audioPlayerManager => audioPlayerManager;
 
+  UserManager get _userManager => userManager;
+
   @override
   Widget build(BuildContext context) {
     const double sizeHeightC = 250;
+    final ThemeData themeData = Theme.of(context);
 
     return Container(
       height: sizeHeightC,
-      margin: const EdgeInsets.symmetric(vertical: 20),
+      margin: const EdgeInsets.symmetric(vertical: 15),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
           Text(_titles[0]),
           Text(_titles[1]),
           const SizedBox(height: 10),
-          Expanded(
-            child: ListView.separated(
-                itemCount: 6,
-                shrinkWrap: true,
-                scrollDirection: Axis.horizontal,
-                separatorBuilder: (_, __) {
-                  return const SizedBox(width: 5);
-                },
-                itemBuilder: (_, __) {
-                  return InkWell(
-                    onTap: () {
-                      _appManager.pageNotifier.value = AlbumSong(
-                        songRepository: _songRepository,
-                        audioPlayer: _audioPlayerManager,
-                        appManager: _appManager,
-                      );
-                    },
-                    child: Stack(
-                      children: [
-                        ValueListenableBuilder(
-                          valueListenable: _appManager.widthScreenNotifier,
-                          builder: (_, valueWidthScreen, __) {
-                            return Container(
-                              width: valueWidthScreen -
-                                  _appManager.paddingHorizontal * 2,
-                              decoration: BoxDecoration(
-                                  color: Colors.black12,
-                                  borderRadius: BorderRadius.circular(8)),
-                              child: Container(
-                                height: double.maxFinite,
-                                decoration: BoxDecoration(
-                                    color: Colors.transparent,
-                                    borderRadius: BorderRadius.circular(8)),
-                                child: Row(
-                                  children: [
-                                    Expanded(
-                                      child: Container(
-                                        margin: const EdgeInsets.all(10),
-                                        color: Colors.transparent,
-                                        child: ClipRRect(
-                                          borderRadius:
-                                              BorderRadius.circular(10),
-                                          child: Container(
-                                            color: Colors.white,
-                                          ),
+          ValueListenableBuilder(
+            valueListenable: _songRepository.songsNewDatabaseNotifier,
+            builder: (_, valueSong, __) {
+              return ValueListenableBuilder(
+                valueListenable:
+                    _songRepository.infoSongsNewReleaseDatabaseNotifier,
+                builder: (_, valueInfoSong, __) {
+                  if (valueInfoSong == null) {
+                    return Center(
+                        child: CircularProgressIndicator(
+                      color: themeData.buttonTheme.colorScheme!.primary,
+                    ));
+                  }
+
+                  if (valueInfoSong.isEmpty) {
+                    return const Expanded(
+                      child: Center(
+                        child: Text("Refresh the page to update the song"),
+                      ),
+                    );
+                  }
+
+                  return Expanded(
+                    child: ListView.separated(
+                        itemCount: valueInfoSong.length,
+                        shrinkWrap: true,
+                        scrollDirection: Axis.horizontal,
+                        separatorBuilder: (_, __) {
+                          return const SizedBox(width: 20);
+                        },
+                        itemBuilder: (_, index) {
+                          InfoSong song = valueInfoSong[index];
+
+                          return InkWell(
+                            onTap: () {
+                              if (valueSong == null) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Loading source song. Waiting...',
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              if (valueSong.length != valueInfoSong.length) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                      'Loading source song. Waiting...',
+                                    ),
+                                  ),
+                                );
+                                return;
+                              }
+
+                              if (_appManager.keyEqualPage.value.value !=
+                                  "SN_DB_ONLINE") {
+                                _audioPlayerManager.isPlayOnOffline.value =
+                                    true;
+                                _audioPlayerManager.setInitialPlaylist(
+                                    valueSong, index);
+                                _appManager.keyEqualPage.value =
+                                    const ValueKey<String>("SN_DB_ONLINE");
+                              }
+
+                              Song songCurrent = valueSong[index];
+                              Song songOld =
+                                  _audioPlayerManager.currentSongNotifier.value;
+                              if (songCurrent.id != songOld.id) {
+                                _audioPlayerManager.playMusic(index);
+                                _audioPlayerManager.currentSongNotifier.value =
+                                    songCurrent;
+                              } else {
+                                if (_audioPlayerManager
+                                        .playButtonNotifier.value ==
+                                    ButtonState.paused) {
+                                  _audioPlayerManager.play();
+                                }
+                              }
+
+                              Route route = _appManager.createRouteUpDown(
+                                MusicPlayer(
+                                  userManager: _userManager,
+                                  appManager: _appManager,
+                                  songRepository: _songRepository,
+                                  audioPlayerManager: _audioPlayerManager,
+                                ),
+                              );
+                              Navigator.push(context, route);
+                            },
+                            child: ValueListenableBuilder(
+                              valueListenable: _appManager.widthScreenNotifier,
+                              builder: (_, valueWidthScreen, __) {
+                                return Container(
+                                  width: valueWidthScreen -
+                                      _appManager.paddingHorizontal * 2,
+                                  decoration: BoxDecoration(
+                                    borderRadius: BorderRadius.circular(20),
+                                  ),
+                                  child: Stack(
+                                    children: [
+                                      Positioned(
+                                        top: 0,
+                                        right: 0,
+                                        left: 0,
+                                        child: Builder(
+                                          builder: (context) {
+                                            AssetImage image1 =
+                                                const AssetImage(
+                                                    "assets/images/R.jpg");
+                                            return ClipRRect(
+                                              borderRadius:
+                                                  BorderRadius.circular(15),
+                                              child: ColorFiltered(
+                                                colorFilter: ColorFilter.mode(
+                                                  themeData.primaryColor
+                                                      .withOpacity(0.3),
+                                                  BlendMode.darken,
+                                                ),
+                                                child: FadeInImage(
+                                                  placeholder: image1,
+                                                  placeholderFit: BoxFit.cover,
+                                                  fit: BoxFit.cover,
+                                                  image:
+                                                      CachedNetworkImageProvider(
+                                                    song.thumbnailM,
+                                                  ),
+                                                ),
+                                              ),
+                                            );
+                                          },
                                         ),
                                       ),
-                                    ),
-                                    Expanded(
-                                      child: Container(
+                                      Container(
+                                        alignment: Alignment.bottomRight,
                                         padding: const EdgeInsets.symmetric(
                                           horizontal: 5,
                                           vertical: 10,
                                         ),
-                                        child: const Column(
+                                        child: Column(
                                           crossAxisAlignment:
-                                              CrossAxisAlignment.start,
+                                              CrossAxisAlignment.end,
                                           mainAxisAlignment:
-                                              MainAxisAlignment.spaceBetween,
+                                              MainAxisAlignment.end,
                                           children: [
                                             Text(
-                                              "Chung ta khong thuoc ve nhau dsfdsf sdfsdf sdfdsf  dfdsfdsfs",
-                                              style: TextStyle(
+                                              song.title,
+                                              style: themeData
+                                                  .textTheme.bodySmall!
+                                                  .copyWith(
                                                 fontSize: 20,
                                                 fontWeight: FontWeight.w600,
                                               ),
@@ -109,26 +209,25 @@ class RectangleTrack extends StatelessWidget {
                                               overflow: TextOverflow.ellipsis,
                                             ),
                                             Text(
-                                              "Son Tung-MTP",
-                                              style: TextStyle(
-                                                fontSize: 16,
-                                              ),
+                                              song.artistsNames,
+                                              style:
+                                                  themeData.textTheme.bodySmall,
                                               maxLines: 2,
                                             ),
                                           ],
                                         ),
-                                      ),
-                                    )
-                                  ],
-                                ),
-                              ),
-                            );
-                          },
-                        ),
-                      ],
-                    ),
+                                      )
+                                    ],
+                                  ),
+                                );
+                              },
+                            ),
+                          );
+                        }),
                   );
-                }),
+                },
+              );
+            },
           )
         ],
       ),

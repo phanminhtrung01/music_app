@@ -1,17 +1,12 @@
 class SearchSong {
-  static const String hotSearch = "ac-suggestions";
-  static const String multiSearch = "search/multi";
-  static const String multiSearchN = "tim-kiem/bai-hat";
-  static const String getSource = "xhr/media/get-source";
-  static const String getChart = "xhr/chart-realtime";
-  static const String streamSource = "get/streaming/song";
-  static const String recommendSong = "recommend/get/songs";
-  static const String getAlbumsOfGenre = "album/get/list";
-
-  //?id[type=artist&page=1&count=0&sort=listen&sectionId=aSongs]
+  static const String searchHotSong = "search/hot/song";
+  static const String searchMulti = "search/multi/song";
   static const String getSongsOfArtist = "song/get/list";
-
-  //?id=6B88W0AB
+  static const String streamSource = "get/streaming/song";
   static const String infoPagePlaylist = "page/get/playlist";
   static const String getSongNewRelease = "get/song/new-release";
+  static const String getSongNewDatabase = "get/songs/db";
+  static const String getSongsByArtist = "get/songs/artist";
+  static const String getSongsByPlaylistOn = "get/songs_by_playlist_on";
+  static const String getFavoriteSongs = "song/get/favorite_song_by_user";
 }

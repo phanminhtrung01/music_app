@@ -3,9 +3,19 @@ import 'package:flutter/services.dart';
 import 'package:music_app/constants/constant.dart';
 import 'package:music_app/pages/login/forgot_pw.dart';
 import 'package:music_app/pages/sign_up/sign_up.dart';
+import 'package:music_app/repository/app_manager.dart';
+import 'package:music_app/repository/auth_firebase.dart';
+import 'package:music_app/repository/user_manager.dart';
 
 class LoginScreen extends StatefulWidget {
-  const LoginScreen({super.key});
+  final UserManager userManager;
+  final AppManager appManager;
+
+  const LoginScreen({
+    super.key,
+    required this.userManager,
+    required this.appManager,
+  });
 
   @override
   State<LoginScreen> createState() => _LoginScreenState();
@@ -18,6 +28,13 @@ class _LoginScreenState extends State<LoginScreen> {
   late bool _checkPwCompleted;
   final _formKeyEmail = GlobalKey<FormState>();
   final _formKeyPassword = GlobalKey<FormState>();
+  late ValueNotifier<String> stringEmailNotifier;
+  late ValueNotifier<String> stringPasswordNotifier;
+  AuthFirebase authFirebase = AuthFirebase();
+
+  AppManager get _appManager => widget.appManager;
+
+  UserManager get _userManager => widget.userManager;
 
   @override
   void initState() {
@@ -27,6 +44,8 @@ class _LoginScreenState extends State<LoginScreen> {
     _rememberMe = false;
     _checkEmailCompleted = false;
     _checkPwCompleted = false;
+    stringEmailNotifier = ValueNotifier<String>("");
+    stringPasswordNotifier = ValueNotifier<String>("");
   }
 
   @override
@@ -57,7 +76,8 @@ class _LoginScreenState extends State<LoginScreen> {
               child: TextFormField(
                 autovalidateMode: AutovalidateMode.onUserInteraction,
                 keyboardType: TextInputType.emailAddress,
-                onChanged: (_) {
+                onChanged: (value) {
+                  stringEmailNotifier.value = value;
                   setState(() {
                     _formKeyEmail.currentState!.validate()
                         ? _checkEmailCompleted = true
@@ -114,7 +134,8 @@ class _LoginScreenState extends State<LoginScreen> {
               child: TextFormField(
                 autovalidateMode: AutovalidateMode.onUserInteraction,
                 obscureText: !_passwordVisible,
-                onChanged: (_) {
+                onChanged: (value) {
+                  stringPasswordNotifier.value = value;
                   setState(() {
                     _formKeyPassword.currentState!.validate()
                         ? _checkPwCompleted = true
@@ -213,17 +234,18 @@ class _LoginScreenState extends State<LoginScreen> {
       width: double.infinity,
       child: ElevatedButton(
         style: ButtonStyle(
-            backgroundColor: MaterialStateProperty.all(Colors.white12)),
-        onPressed: () => {
-          debugPrint('Login Button Pressed'),
-          _formKeyEmail.currentState!.validate(),
-          _formKeyPassword.currentState!.validate(),
-          if (_checkEmailCompleted && _checkPwCompleted)
-            {
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(content: Text('Processing Data')),
-              )
-            }
+          backgroundColor: MaterialStateProperty.all(
+            Colors.white12,
+          ),
+        ),
+        onPressed: () {
+          _formKeyEmail.currentState!.validate();
+          _formKeyPassword.currentState!.validate();
+          if (_checkEmailCompleted && _checkPwCompleted) {
+            String username = stringEmailNotifier.value;
+            String password = stringPasswordNotifier.value;
+            _userManager.login(context, username, password);
+          }
         },
         child: const Text(
           'LOGIN',
@@ -271,66 +293,72 @@ class _LoginScreenState extends State<LoginScreen> {
 
   @override
   Widget build(BuildContext context) {
-    return Scaffold(
-      body: AnnotatedRegion<SystemUiOverlayStyle>(
-        value: SystemUiOverlayStyle.dark,
-        child: GestureDetector(
-          onTap: () => FocusScope.of(context).unfocus(),
-          child: Stack(
-            children: <Widget>[
-              Container(
-                height: double.infinity,
-                width: double.infinity,
-                decoration: const BoxDecoration(
-                  gradient: LinearGradient(
-                    begin: Alignment.topCenter,
-                    end: Alignment.bottomCenter,
-                    colors: [
-                      Colors.black87,
-                      Colors.black54,
-                      Colors.black87,
-                      Colors.black45
-                    ],
-                    stops: [0.1, 0.4, 0.7, 0.9],
+    return ValueListenableBuilder(
+      valueListenable: _appManager.themeModeNotifier,
+      builder: (_, valueMode, __) {
+        return Scaffold(
+          appBar: AppBar(),
+          body: AnnotatedRegion<SystemUiOverlayStyle>(
+            value: valueMode
+                ? SystemUiOverlayStyle.dark
+                : SystemUiOverlayStyle.light,
+            child: GestureDetector(
+              onTap: () => FocusScope.of(context).unfocus(),
+              child: Stack(
+                children: <Widget>[
+                  Container(
+                    height: double.infinity,
+                    width: double.infinity,
+                    decoration: const BoxDecoration(
+                      gradient: LinearGradient(
+                        begin: Alignment.topCenter,
+                        end: Alignment.bottomCenter,
+                        colors: [
+                          Colors.black87,
+                          Colors.black54,
+                          Colors.black87,
+                          Colors.black45
+                        ],
+                        stops: [0.1, 0.4, 0.7, 0.9],
+                      ),
+                    ),
                   ),
-                ),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: 40.0,
+                      vertical: 80.0,
+                    ),
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: <Widget>[
+                          const Text(
+                            'Sign In',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontFamily: 'OpenSans',
+                              fontSize: 30.0,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 30.0),
+                          _buildEmailTF(),
+                          const SizedBox(height: 30.0),
+                          _buildPasswordTF(),
+                          _buildForgotPasswordBtn(),
+                          _buildRememberMeCheckbox(),
+                          _buildLoginBtn(),
+                          _buildSignupBtn(),
+                        ],
+                      ),
+                    ),
+                  )
+                ],
               ),
-              Container(
-                padding: const EdgeInsets.symmetric(
-                  horizontal: 40.0,
-                  vertical: 80.0,
-                ),
-                child: SingleChildScrollView(
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: <Widget>[
-                      const Text(
-                        'Sign In',
-                        style: TextStyle(
-                          color: Colors.white,
-                          fontFamily: 'OpenSans',
-                          fontSize: 30.0,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                      const SizedBox(height: 30.0),
-                      _buildEmailTF(),
-                      const SizedBox(
-                        height: 30.0,
-                      ),
-                      _buildPasswordTF(),
-                      _buildForgotPasswordBtn(),
-                      _buildRememberMeCheckbox(),
-                      _buildLoginBtn(),
-                      _buildSignupBtn(),
-                    ],
-                  ),
-                ),
-              )
-            ],
+            ),
           ),
-        ),
-      ),
+        );
+      },
     );
   }
 }

@@ -1,16 +1,20 @@
-class InfoSong {
+import 'package:equatable/equatable.dart';
+import 'package:music_app/model/object_json/source_song.dart';
+
+class InfoSong extends Equatable {
   final String id;
   final String title;
   final String artistsNames;
   final String thumbnail;
   final String thumbnailM;
   final String duration;
+  final SourceSong? sourceSong;
   final int releaseDate;
   final List idGenres;
   final List idArtists;
   final String idAlbum;
 
-  InfoSong({
+  const InfoSong({
     required this.id,
     required this.title,
     required this.artistsNames,
@@ -21,20 +25,27 @@ class InfoSong {
     required this.idGenres,
     required this.idArtists,
     required this.idAlbum,
+    this.sourceSong,
   });
 
   factory InfoSong.infoSongFromJson(Map<String, dynamic> json) {
+    var sourceSong = json['sourceSong'];
+    if (sourceSong != null) {
+      sourceSong = SourceSong.userFromJson(json['sourceSong']);
+    }
+
     return InfoSong(
-      id: json['encodeId'] ?? json['id'] as String,
-      title: json['title'] as String,
-      artistsNames: json['artistsNames'] as String,
-      thumbnail: json['thumbnail'] as String,
-      thumbnailM: json['thumbnailM'] as String,
-      duration: json['duration'] as String,
-      releaseDate: json['releaseDate'] as int,
-      idGenres: json['idGenres'] as List,
-      idArtists: json['idArtists'] as List,
-      idAlbum: json['idAlbum'] as String,
+      id: json['encodeId'] ?? json['id'] ?? json['idSong'] ?? '',
+      title: json['title'] ?? '',
+      artistsNames: json['artistsNames'] ?? '',
+      thumbnail: json['thumbnail'] ?? '',
+      thumbnailM: json['thumbnailM'] ?? '',
+      duration: json['duration'] ?? json['duration'].toString(),
+      sourceSong: sourceSong,
+      releaseDate: json['releaseDate'] ?? 0,
+      idGenres: json['idGenres'] ?? List.empty(growable: true),
+      idArtists: json['idArtists'] ?? List.empty(growable: true),
+      idAlbum: json['idAlbum'] ?? '',
     );
   }
 
@@ -52,4 +63,8 @@ class InfoSong {
       'idAlbum': instance.idAlbum,
     };
   }
+
+  @override
+  // TODO: implement props
+  List<Object?> get props => [id];
 }

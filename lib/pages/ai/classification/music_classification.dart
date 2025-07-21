@@ -6,6 +6,7 @@ import 'package:music_app/pages/play/play_home.dart';
 import 'package:music_app/repository/app_manager.dart';
 import 'package:music_app/repository/audio_player.dart';
 import 'package:music_app/repository/song_repository.dart';
+import 'package:music_app/repository/user_manager.dart';
 import 'package:on_audio_query/on_audio_query.dart';
 
 class MusicClassification extends StatefulWidget {
@@ -14,11 +15,13 @@ class MusicClassification extends StatefulWidget {
     required this.songRepository,
     required this.audioPlayerManager,
     required this.appManager,
+    required this.userManager,
   }) : super(key: key);
 
   final SongRepository songRepository;
   final AudioPlayerManager audioPlayerManager;
   final AppManager appManager;
+  final UserManager userManager;
 
   @override
   State<MusicClassification> createState() => _MusicClassificationState();
@@ -35,6 +38,8 @@ class _MusicClassificationState extends State<MusicClassification> {
   AudioPlayerManager get _audioPlayerManager => widget.audioPlayerManager;
 
   AppManager get _appManager => widget.appManager;
+
+  UserManager get _userManager => widget.userManager;
 
   Future<List<PlaylistModel>> queryListPlaylists() async {
     return await _audioQuery.queryPlaylists(
@@ -161,16 +166,15 @@ class _MusicClassificationState extends State<MusicClassification> {
                                       MaterialPageRoute(
                                         builder: (context) =>
                                             ItemClassification(
-                                              appManager: _appManager,
-                                              audioPlayerManager:
+                                          userManager: _userManager,
+                                          appManager: _appManager,
+                                          audioPlayerManager:
                                               _audioPlayerManager,
-                                              repository: _songRepository,
-                                              indexPlaylist: indexPlaylist,
-                                            ),
+                                          repository: _songRepository,
+                                          indexPlaylist: indexPlaylist,
+                                        ),
                                       ),
                                     );
-                                    _audioPlayerManager.isChangePlaylist.value =
-                                    true;
                                   },
                                   child: Column(
                                     children: [
@@ -179,7 +183,7 @@ class _MusicClassificationState extends State<MusicClassification> {
                                         padding: const EdgeInsets.all(10),
                                         decoration: BoxDecoration(
                                           borderRadius:
-                                          BorderRadius.circular(20),
+                                              BorderRadius.circular(20),
                                           color: Colors.white54,
                                           image: DecorationImage(
                                             image: AssetImage(
@@ -211,9 +215,11 @@ class _MusicClassificationState extends State<MusicClassification> {
                         ),
                         _audioPlayerManager.isPlayOrNotPlayNotifier.value
                             ? PlayerHome(
-                          appManager: _appManager,
-                          audioPlayerManager: _audioPlayerManager,
-                        )
+                                userManager: _userManager,
+                                appManager: _appManager,
+                                songRepository: _songRepository,
+                                audioPlayerManager: _audioPlayerManager,
+                              )
                             : Container(),
                       ],
                     );

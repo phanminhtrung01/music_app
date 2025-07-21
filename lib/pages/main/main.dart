@@ -1,17 +1,26 @@
+import 'dart:async';
+
+import 'package:cached_network_image/cached_network_image.dart';
 import 'package:curved_navigation_bar/curved_navigation_bar.dart';
 import 'package:flutter/material.dart';
+import 'package:music_app/model/object_json/info_song.dart';
 import 'package:music_app/model/object_json/song_request.dart';
 import 'package:music_app/pages/drawer/IntroduceScreen.dart';
+import 'package:music_app/pages/drawer/item_setting.dart';
 import 'package:music_app/pages/drawer/scan_folder.dart';
 import 'package:music_app/pages/drawer/user_page_1.dart';
 import 'package:music_app/pages/main/layout.dart';
+import 'package:music_app/pages/main/search.dart';
 import 'package:music_app/pages/play/play_home.dart';
 import 'package:music_app/repository/app_manager.dart';
 import 'package:music_app/repository/audio_player.dart';
 import 'package:music_app/repository/song_repository.dart';
+import 'package:music_app/repository/user_manager.dart';
+import 'package:transparent_image/transparent_image.dart';
 
 class LayoutPage extends StatefulWidget {
   final AppManager appManager;
+  final UserManager userManager;
   final AudioPlayerManager audioPlayerManager;
   final SongRepository songRepository;
 
@@ -20,6 +29,7 @@ class LayoutPage extends StatefulWidget {
     required this.audioPlayerManager,
     required this.appManager,
     required this.songRepository,
+    required this.userManager,
   }) : super(key: key);
 
   @override
@@ -30,17 +40,31 @@ class _LayoutPageState extends State<LayoutPage> with TickerProviderStateMixin {
   late Future<List<SongRequest>> songsRequest = Future(() => []);
   late ValueNotifier<bool> hasSearchNotifier;
   late ValueNotifier<int> _indexDrawNotifier;
-  late ValueNotifier<String> preStringSearch;
   late AnimationController _animationIconSearchController;
   late AnimationController _animationHideNaviController;
   late Animation<double> _animationHideNavi;
   late TextEditingController _textEditingController;
   late GlobalKey<ScaffoldState> _scaffoldKey;
-  late GlobalKey<AnimatedListState> _listKey;
   late FocusNode _textFocusNode;
   late int indexPage;
+  final GlobalKey<RefreshIndicatorState> _refreshIndicatorKey =
+      GlobalKey<RefreshIndicatorState>();
+
+  Future<void> _refreshData() async {
+    // Gọi API để lấy dữ liệu mới
+    _songRepository.queryListSongNewReleaseOffline(true);
+    _songRepository.queryListSongNewReleaseOnline(true);
+    _songRepository.requestArtistHotDatabase(true);
+  }
+
+  void _onNewEvent() {
+    // Hiển thị hiệu ứng làm mới và tải lại dữ liệu
+    _refreshIndicatorKey.currentState?.show();
+  }
 
   AppManager get _appManager => widget.appManager;
+
+  UserManager get _userManager => widget.userManager;
 
   AudioPlayerManager get _audioPlayerManager => widget.audioPlayerManager;
 
@@ -52,7 +76,6 @@ class _LayoutPageState extends State<LayoutPage> with TickerProviderStateMixin {
     indexPage = 0;
     _textFocusNode = FocusNode();
     _scaffoldKey = GlobalKey<ScaffoldState>();
-    _listKey = GlobalKey<AnimatedListState>();
     _textEditingController = TextEditingController();
     _animationIconSearchController = AnimationController(
       vsync: this,
@@ -74,8 +97,7 @@ class _LayoutPageState extends State<LayoutPage> with TickerProviderStateMixin {
       }
     });
 
-    preStringSearch = ValueNotifier<String>('');
-
+    _onNewEvent();
     super.initState();
   }
 
@@ -90,196 +112,142 @@ class _LayoutPageState extends State<LayoutPage> with TickerProviderStateMixin {
 
   @override
   Widget build(BuildContext context) {
-    const Duration durationTextSearch = Duration(milliseconds: 1000);
     const Duration durationPage = Duration(milliseconds: 300);
     final ThemeData themeData = Theme.of(context);
 
     return Scaffold(
       key: _scaffoldKey,
       backgroundColor: themeData.colorScheme.background,
-      body: SafeArea(
-        child: ValueListenableBuilder(
-          valueListenable: _audioPlayerManager.isPlayOrNotPlayNotifier,
-          builder: (_, valuePlay, __) {
-            return ValueListenableBuilder(
-              valueListenable: _appManager.searchString,
-              builder: (_, valueString, __) {
-                if (valueString.isNotEmpty) {
-                  WidgetsBinding.instance.addPostFrameCallback((_) {
-                    try {
-                      _appManager.indexPageChildrenMain2Notifier.value =
-                          indexPage;
-                    } catch (_) {}
-                  });
-                }
-
-                final lengthPreStr = preStringSearch.value.length;
-                final lengthStrSearch = valueString.length;
-                if ((lengthPreStr - lengthStrSearch).isNegative) {
-                  _listKey.currentState?.insertItem(0);
-                } else {
-                  if (lengthPreStr != lengthStrSearch) {
-                    _listKey.currentState?.removeItem(0, (_, animation) {
-                      return SizeTransition(
-                        sizeFactor: animation,
-                        child: ListTile(
-                          title: AnimatedSwitcher(
-                            duration: durationTextSearch,
-                            child: Text(
-                              textAlign: TextAlign.start,
-                              key: ValueKey(valueString),
-                              'Suggest: $valueString',
-                              style: themeData.textTheme.bodySmall,
-                            ),
-                          ),
-                        ),
-                      );
+      body: RefreshIndicator(
+        key: _refreshIndicatorKey,
+        onRefresh: _refreshData,
+        child: SafeArea(
+          child: ValueListenableBuilder(
+            valueListenable: _audioPlayerManager.isPlayOrNotPlayNotifier,
+            builder: (_, valuePlay, __) {
+              return ValueListenableBuilder(
+                valueListenable: _appManager.searchString,
+                builder: (_, valueString, __) {
+                  if (valueString.isNotEmpty) {
+                    WidgetsBinding.instance.addPostFrameCallback((_) {
+                      try {
+                        _appManager.indexPageChildrenMain2Notifier.value =
+                            indexPage;
+                      } catch (_) {}
                     });
                   }
-                }
-                preStringSearch.value = valueString;
-                return Stack(
-                  children: [
-                    SizedBox(
-                      height: double.maxFinite,
-                      width: double.maxFinite,
-                      child: SingleChildScrollView(
-                        keyboardDismissBehavior:
-                            ScrollViewKeyboardDismissBehavior.onDrag,
-                        child: Column(
-                          children: [
-                            ValueListenableBuilder(
-                              valueListenable: _appManager.pageNotifier,
-                              builder: (_, valuePage, __) {
-                                return AnimatedContainer(
-                                  height: valuePage == null
-                                      ? _appManager.heightHeader
-                                      : 0,
-                                  alignment: Alignment.center,
-                                  padding: const EdgeInsets.symmetric(
-                                      horizontal: 20),
-                                  duration: durationPage,
-                                  child: buildHeader(context),
-                                );
-                              },
-                            ),
-                            Stack(
-                              children: [
-                                FadeTransition(
-                                  opacity: _animationHideNavi,
-                                  child: Padding(
+                  _songRepository.requestHotSearchSongOnline(valueString);
+                  return Stack(
+                    children: [
+                      SizedBox(
+                        height: double.maxFinite,
+                        width: double.maxFinite,
+                        child: SingleChildScrollView(
+                          physics: const AlwaysScrollableScrollPhysics(),
+                          keyboardDismissBehavior:
+                              ScrollViewKeyboardDismissBehavior.onDrag,
+                          child: Column(
+                            children: [
+                              ValueListenableBuilder(
+                                valueListenable: _appManager.pageNotifier,
+                                builder: (_, valuePage, __) {
+                                  return AnimatedContainer(
+                                    height: valuePage == null
+                                        ? _appManager.heightHeader
+                                        : 0,
+                                    alignment: Alignment.center,
                                     padding: const EdgeInsets.symmetric(
                                         horizontal: 20),
-                                    child: LayoutMain(
-                                      indexPage: indexPage,
-                                      appManager: _appManager,
-                                      audioPlayerManager: _audioPlayerManager,
-                                      songRepository: _songRepository,
+                                    duration: durationPage,
+                                    child: buildHeader(context),
+                                  );
+                                },
+                              ),
+                              Stack(
+                                children: [
+                                  FadeTransition(
+                                    opacity: _animationHideNavi,
+                                    child: Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                          horizontal: 20),
+                                      child: LayoutMain(
+                                        indexPage: indexPage,
+                                        appManager: _appManager,
+                                        audioPlayerManager: _audioPlayerManager,
+                                        songRepository: _songRepository,
+                                        userManager: _userManager,
+                                      ),
                                     ),
                                   ),
-                                ),
-                                ValueListenableBuilder(
+                                  ValueListenableBuilder(
+                                    valueListenable: _appManager.pageNotifier,
+                                    builder: (_, valuePage, __) {
+                                      if (valuePage == null) {
+                                        return Container();
+                                      }
+
+                                      return SizedBox(
+                                        height: _audioPlayerManager
+                                                .isPlayOrNotPlayNotifier.value
+                                            ? _appManager.getHeightPlaySub()
+                                            : _appManager.getHeightNoPlaySub(),
+                                        width: double.maxFinite,
+                                        child: valuePage,
+                                      );
+                                    },
+                                  ),
+                                ],
+                              ),
+                              valuePlay
+                                  ? Align(
+                                      alignment: Alignment.bottomCenter,
+                                      child: PlayerHome(
+                                        userManager: _userManager,
+                                        appManager: _appManager,
+                                        songRepository: _songRepository,
+                                        audioPlayerManager: _audioPlayerManager,
+                                      ),
+                                    )
+                                  : Container(height: 0),
+                            ],
+                          ),
+                        ),
+                      ),
+                      ValueListenableBuilder(
+                        valueListenable:
+                            _appManager.indexPageChildrenMain1Notifier,
+                        builder: (_, valuePageUser, __) {
+                          return (valueString.isNotEmpty &&
+                                  indexPage == 0 &&
+                                  valuePageUser != 1)
+                              ? ValueListenableBuilder(
                                   valueListenable: _appManager.pageNotifier,
                                   builder: (_, valuePage, __) {
                                     if (valuePage == null) {
-                                      return Container();
+                                      return buildPopupSearch();
                                     }
 
-                                    return SizedBox(
-                                      height: _audioPlayerManager
-                                              .isPlayOrNotPlayNotifier.value
-                                          ? _appManager.getHeightPlaySub()
-                                          : _appManager.getHeightNoPlaySub(),
-                                      width: double.maxFinite,
-                                      child: valuePage,
-                                    );
+                                    if (valueString.isNotEmpty) {
+                                      _textFocusNode.unfocus(
+                                        disposition: UnfocusDisposition
+                                            .previouslyFocusedChild,
+                                      );
+                                    }
+                                    return Container();
                                   },
-                                ),
-                              ],
-                            ),
-                            valuePlay
-                                ? Align(
-                                    alignment: Alignment.bottomCenter,
-                                    child: PlayerHome(
-                                      appManager: _appManager,
-                                      audioPlayerManager: _audioPlayerManager,
-                                    ),
-                                  )
-                                : Container(height: 0),
-                          ],
-                        ),
-                      ),
-                    ),
-                    ValueListenableBuilder(
-                      valueListenable:
-                          _appManager.indexPageChildrenMain1Notifier,
-                      builder: (_, valuePageUser, __) {
-                        return (valueString.isNotEmpty &&
-                                indexPage == 0 &&
-                                valuePageUser != 1)
-                            ? Column(
-                                children: [
-                                  Container(height: _appManager.heightHeader),
-                                  Align(
-                                    alignment: Alignment.topCenter,
-                                    child: Container(
-                                      width: _appManager
-                                              .widthScreenNotifier.value -
-                                          40 * 2,
-                                      alignment: Alignment.center,
-                                      decoration: BoxDecoration(
-                                          color: themeData.primaryColor,
-                                          borderRadius:
-                                              BorderRadius.circular(20)),
-                                      child: AnimatedList(
-                                          key: _listKey,
-                                          initialItemCount: valueString.length,
-                                          shrinkWrap: true,
-                                          itemBuilder: (_, index, animation) {
-                                            return SizeTransition(
-                                              sizeFactor: animation,
-                                              child: ListTile(
-                                                title: AnimatedSwitcher(
-                                                  duration: durationTextSearch,
-                                                  child: Text(
-                                                    textAlign: TextAlign.start,
-                                                    key: ValueKey(valueString),
-                                                    'Suggest: $valueString',
-                                                    style: themeData
-                                                        .textTheme.bodySmall,
-                                                  ),
-                                                ),
-                                              ),
-                                            );
-                                          }),
-                                    ),
-                                  ),
-                                ],
-                              )
-                            : Container();
-                      },
-                    )
-                  ],
-                );
-              },
-            );
-          },
+                                )
+                              : Container();
+                        },
+                      )
+                    ],
+                  );
+                },
+              );
+            },
+          ),
         ),
       ),
       drawer: buildDrawer(context),
-      bottomSheet: Container(
-        color: Colors.red,
-        height: 50,
-        child: IconButton(
-            onPressed: () {
-              _appManager.themeModeNotifier.value =
-                  !_appManager.themeModeNotifier.value;
-              debugPrint("a");
-            },
-            icon: const Icon(
-              Icons.settings,
-            )),
-      ),
       bottomNavigationBar: ValueListenableBuilder(
         valueListenable: _appManager.pageNotifier,
         builder: (_, valuePage, __) {
@@ -296,6 +264,90 @@ class _LayoutPageState extends State<LayoutPage> with TickerProviderStateMixin {
           );
         },
       ),
+    );
+  }
+
+  Widget buildPopupSearch() {
+    final ThemeData themeData = Theme.of(context);
+
+    return ValueListenableBuilder(
+      valueListenable: _songRepository.infoSongsHotSearchNotifier,
+      builder: (_, valueSongSearch, __) {
+        if (valueSongSearch == null) {
+          return Container();
+        }
+
+        return Column(
+          children: [
+            Container(
+              height: _appManager.paddingTopNotifier.value + 50,
+            ),
+            Container(
+              decoration: BoxDecoration(
+                borderRadius: BorderRadius.circular(15),
+                color: themeData.colorScheme.primary,
+              ),
+              width: _appManager.widthScreenNotifier.value - 60,
+              child: AnimatedSwitcher(
+                duration: const Duration(milliseconds: 250),
+                child: ListView.builder(
+                    key: ValueKey(valueSongSearch),
+                    shrinkWrap: true,
+                    itemCount: valueSongSearch.length,
+                    itemBuilder: (_, index) {
+                      InfoSong song = valueSongSearch[index];
+                      return ValueListenableBuilder(
+                        valueListenable: _appManager.searchString,
+                        builder: (BuildContext context, String value,
+                            Widget? child) {
+                          return ListTile(
+                            onTap: () {
+                              _songRepository
+                                  .requestSearchSongOnline(song.title);
+                              _appManager.pageNotifier.value = SearchPage(
+                                infoSong: song,
+                                appManager: _appManager,
+                                userManager: _userManager,
+                                songRepository: _songRepository,
+                                audioPlayerManager: _audioPlayerManager,
+                              );
+                            },
+                            leading: SizedBox(
+                              height: 45,
+                              width: 45,
+                              child: ClipRRect(
+                                borderRadius: BorderRadius.circular(10),
+                                child: FadeInImage(
+                                  image: CachedNetworkImageProvider(
+                                      song.thumbnail),
+                                  fadeInDuration: const Duration(seconds: 1),
+                                  placeholder: MemoryImage(kTransparentImage),
+                                  fit: BoxFit.cover,
+                                ),
+                              ),
+                            ),
+                            title: Text(
+                              textAlign: TextAlign.start,
+                              key: ValueKey(song.title),
+                              song.title,
+                              style: themeData.textTheme.bodySmall,
+                            ),
+                            subtitle: Text(
+                              textAlign: TextAlign.start,
+                              key: ValueKey(song.artistsNames),
+                              song.artistsNames,
+                              style: themeData.textTheme.bodySmall!
+                                  .copyWith(fontSize: 12),
+                            ),
+                          );
+                        },
+                      );
+                    }),
+              ),
+            ),
+          ],
+        );
+      },
     );
   }
 
@@ -443,26 +495,75 @@ class _LayoutPageState extends State<LayoutPage> with TickerProviderStateMixin {
       child: ListView(
         padding: const EdgeInsets.only(right: 10),
         children: [
-          SizedBox(
-            height: 200,
-            child: Container(
-              alignment: Alignment.bottomLeft,
-              padding: const EdgeInsets.only(left: 20, bottom: 20),
-              child: InkWell(
-                onTap: () {
-                  Route route = _createRoute(const InfoUser1());
-                  Navigator.push(context, route);
-                },
-                child: CircleAvatar(
-                  radius: 40,
-                  backgroundImage: const Image(
-                          image: NetworkImage("https://dntech.vn/uploads"
-                              "/details/2021/11/images"
-                              "/ai%20l%C3%A0%20g%C3%AC.jpg"))
-                      .image,
+          ValueListenableBuilder(
+            valueListenable: UserManager.userNotifier,
+            builder: (_, valueUser, __) {
+              final ImageProvider imgUser;
+              if (valueUser == null) {
+                imgUser = const AssetImage("assets/images/user.png");
+              } else {
+                imgUser = CachedNetworkImageProvider(valueUser.avatar);
+              }
+              return SizedBox(
+                height: 200,
+                child: Container(
+                  alignment: Alignment.bottomLeft,
+                  padding: const EdgeInsets.only(
+                    left: 10,
+                    bottom: 10,
+                  ),
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.end,
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                      SizedBox(height: _appManager.paddingTopNotifier.value),
+                      SettingsButton(
+                        appManager: _appManager,
+                      ),
+                      InkWell(
+                        onTap: () {
+                          Route route = _createRoute(
+                            InfoUser1(
+                              appManager: _appManager,
+                              userManager: _userManager,
+                              user: valueUser,
+                            ),
+                          );
+                          Navigator.push(context, route);
+                        },
+                        child: Row(
+                          children: [
+                            CircleAvatar(
+                              radius: 40,
+                              backgroundImage: Image(
+                                image: imgUser,
+                              ).image,
+                            ),
+                            const SizedBox(width: 20),
+                            Column(
+                              mainAxisAlignment: MainAxisAlignment.center,
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                Text(
+                                  valueUser?.name ?? "Unknown",
+                                  style: themeData.textTheme.bodyMedium,
+                                  maxLines: 2,
+                                ),
+                                const SizedBox(height: 10),
+                                Text(
+                                  valueUser?.gender ?? "No",
+                                ),
+                              ],
+                            ),
+                            const SizedBox(width: 20),
+                          ],
+                        ),
+                      ),
+                    ],
+                  ),
                 ),
-              ),
-            ),
+              );
+            },
           ),
           const SizedBox(height: 20),
           ValueListenableBuilder(
@@ -524,7 +625,14 @@ class _LayoutPageState extends State<LayoutPage> with TickerProviderStateMixin {
                         _indexDrawNotifier.value = 1;
                         _scaffoldKey.currentState!.closeDrawer();
 
-                        Route route = _createRoute(const FolderPicker());
+                        Route route = _createRoute(
+                          ScanFolder(
+                            audioPlayerManager: _audioPlayerManager,
+                            userManager: _userManager,
+                            appManager: _appManager,
+                            songRepository: _songRepository,
+                          ),
+                        );
                         Navigator.push(context, route);
                       },
                       borderRadius: const BorderRadius.only(
@@ -571,7 +679,14 @@ class _LayoutPageState extends State<LayoutPage> with TickerProviderStateMixin {
                         _indexDrawNotifier.value = 2;
                         _scaffoldKey.currentState!.closeDrawer();
 
-                        Route route = _createRoute(const FolderPicker());
+                        Route route = _createRoute(
+                          ScanFolder(
+                            audioPlayerManager: _audioPlayerManager,
+                            userManager: _userManager,
+                            appManager: _appManager,
+                            songRepository: _songRepository,
+                          ),
+                        );
                         Navigator.push(context, route);
                       },
                       borderRadius: const BorderRadius.only(
@@ -615,50 +730,6 @@ class _LayoutPageState extends State<LayoutPage> with TickerProviderStateMixin {
                         _indexDrawNotifier.value = 3;
                         _scaffoldKey.currentState!.closeDrawer();
 
-                        Route route = _createRoute(const FolderPicker());
-                        Navigator.push(context, route);
-                      },
-                      borderRadius: const BorderRadius.only(
-                        topRight: Radius.circular(30),
-                        bottomRight: Radius.circular(30),
-                      ),
-                      child: AnimatedSwitcher(
-                        duration: durationSelect,
-                        child: Container(
-                          key: ValueKey(valueIndexDraw),
-                          padding: const EdgeInsets.only(left: 25),
-                          alignment: Alignment.centerLeft,
-                          height: 50,
-                          width: double.maxFinite,
-                          decoration: BoxDecoration(
-                              color: valueIndexDraw == 3
-                                  ? themeData.focusColor
-                                  : Colors.transparent,
-                              borderRadius: const BorderRadius.only(
-                                topRight: Radius.circular(30),
-                                bottomRight: Radius.circular(30),
-                              )),
-                          child: Wrap(
-                            crossAxisAlignment: WrapCrossAlignment.center,
-                            spacing: 25,
-                            children: [
-                              Icon(
-                                Icons.settings,
-                                color: themeData
-                                    .buttonTheme.colorScheme!.secondary,
-                                size: 30,
-                              ),
-                              const Text("Setting"),
-                            ],
-                          ),
-                        ),
-                      ),
-                    ),
-                    InkWell(
-                      onTap: () {
-                        _indexDrawNotifier.value = 4;
-                        _scaffoldKey.currentState!.closeDrawer();
-
                         Route route =
                             _createRoute(const IntroduceMusicScreen());
                         Navigator.push(context, route);
@@ -676,7 +747,7 @@ class _LayoutPageState extends State<LayoutPage> with TickerProviderStateMixin {
                           height: 50,
                           width: double.maxFinite,
                           decoration: BoxDecoration(
-                              color: valueIndexDraw == 4
+                              color: valueIndexDraw == 3
                                   ? themeData.focusColor
                                   : Colors.transparent,
                               borderRadius: const BorderRadius.only(

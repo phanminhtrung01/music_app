@@ -7,9 +7,11 @@ import 'package:music_app/pages/main/user.dart';
 import 'package:music_app/repository/app_manager.dart';
 import 'package:music_app/repository/audio_player.dart';
 import 'package:music_app/repository/song_repository.dart';
+import 'package:music_app/repository/user_manager.dart';
 
 class LayoutMain extends StatefulWidget {
   final AppManager appManager;
+  final UserManager userManager;
   final SongRepository songRepository;
   final AudioPlayerManager audioPlayerManager;
   final int indexPage;
@@ -20,6 +22,7 @@ class LayoutMain extends StatefulWidget {
     required this.audioPlayerManager,
     required this.songRepository,
     required this.indexPage,
+    required this.userManager,
   }) : super(key: key);
 
   @override
@@ -31,6 +34,8 @@ class _LayoutMainState extends State<LayoutMain>
   late CarouselController? _carouselController;
 
   AppManager get _appManager => widget.appManager;
+
+  UserManager get _userManager => widget.userManager;
 
   SongRepository get _songRepository => widget.songRepository;
 
@@ -75,17 +80,29 @@ class _LayoutMainState extends State<LayoutMain>
                 }),
             items: [
               HomePage(
+                userManager: _userManager,
                 appManager: _appManager,
                 audioPlayerManager: _audioPlayerManager,
                 songRepository: _songRepository,
               ),
               MusicContain(
+                userManager: _userManager,
                 appManager: _appManager,
                 songRepository: _songRepository,
                 audioPlayerManager: _audioPlayerManager,
               ),
-              buildAlContain(context, _audioPlayerManager, _appManager),
-              buildUserContain(context, false),
+              buildAlContain(
+                context,
+                _audioPlayerManager,
+                _appManager,
+              ),
+              buildUserContain(
+                context,
+                _appManager,
+                _userManager,
+                _audioPlayerManager,
+                _songRepository,
+              ),
             ],
           );
         },

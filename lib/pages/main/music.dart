@@ -2,10 +2,12 @@ import 'package:carousel_slider/carousel_slider.dart';
 import 'package:flutter/material.dart';
 import 'package:music_app/item/album.dart';
 import 'package:music_app/model/radio_model.dart';
+import 'package:music_app/notifiers/play_button_notifier.dart';
 import 'package:music_app/pages/play/music_player.dart';
 import 'package:music_app/repository/app_manager.dart';
 import 'package:music_app/repository/audio_player.dart';
 import 'package:music_app/repository/song_repository.dart';
+import 'package:music_app/repository/user_manager.dart';
 import 'package:transparent_image/transparent_image.dart';
 
 import '../../model/song.dart';
@@ -22,12 +24,14 @@ class MusicContain extends StatefulWidget {
   final SongRepository songRepository;
   final AudioPlayerManager audioPlayerManager;
   final AppManager appManager;
+  final UserManager userManager;
 
   const MusicContain({
     Key? key,
     required this.audioPlayerManager,
     required this.songRepository,
     required this.appManager,
+    required this.userManager,
   }) : super(key: key);
 
   @override
@@ -48,6 +52,8 @@ class _MusicContainState extends State<MusicContain> {
   AudioPlayerManager get _audioPlayerManager => widget.audioPlayerManager;
 
   AppManager get _appManager => widget.appManager;
+
+  UserManager get _userManager => widget.userManager;
 
   @override
   void initState() {
@@ -189,23 +195,33 @@ class _MusicContainState extends State<MusicContain> {
             ),
           ),
           const SizedBox(height: 10.0),
-          StreamBuilder(
-            stream: _songRepository.songsFutureLocal.stream,
-            builder: (_, item) {
-              if (item.data == null) {
-                return const Center(
-                  child: CircularProgressIndicator(),
+          ValueListenableBuilder(
+            valueListenable: _songRepository.songsLocalNotifier,
+            builder: (_, valueSongs, __) {
+              if (valueSongs == null) {
+                return Center(
+                  child: CircularProgressIndicator(
+                    color: themeData.primaryColor,
+                  ),
                 );
-              } else if (item.requireData.isEmpty) {
+              } else if (valueSongs.isEmpty) {
                 return const Center(
                   child: Text("Not found Song!"),
                 );
               }
 
-              if (item.connectionState == ConnectionState.active) {
-                songs = item.data!;
-                _songRepository.sizeList.value = songs.length;
+              songs = valueSongs;
+              _songRepository.sizeList.value = songs.length;
+
+              List<Song> favoriteSongs = List.empty(growable: true);
+
+              for (var element in songs) {
+                if (_audioPlayerManager.checkFavoriteSongOff(element)) {
+                  favoriteSongs.add(element);
+                }
               }
+
+              _audioPlayerManager.favoriteSongsOffline.value = favoriteSongs;
 
               return ValueListenableBuilder(
                 valueListenable: _appManager.searchString,
@@ -243,134 +259,15 @@ class _MusicContainState extends State<MusicContain> {
                           ],
                         ),
                       ),
-                      ValueListenableBuilder(
-                        valueListenable:
-                            _audioPlayerManager.isPlayOrNotPlayNotifier,
-                        builder: (_, valuePlay, __) {
-                          return CarouselSlider(
-                            carouselController: _carouselController,
-                            options: CarouselOptions(
-                              height: valuePlay
-                                  ? _appManager.getHeightPlay() - 150
-                                  : _appManager.getHeightNoPlay() - 150,
-                              initialPage: 0,
-                              viewportFraction: 1,
-                              padEnds: false,
-                              enableInfiniteScroll: false,
-                              onPageChanged: (index, __) {
-                                setState(() {
-                                  for (var element in _listRadio) {
-                                    element.isSelected = false;
-                                  }
-                                  _listRadio[index].isSelected = true;
-                                });
-                              },
-                            ),
-                            items: [
-                              ListView.separated(
-                                  separatorBuilder: (_, __) {
-                                    return Divider(
-                                      thickness: 2,
-                                      color: themeData.colorScheme.onPrimary
-                                          .withAlpha(10),
-                                    );
-                                  },
-                                  itemCount: songSearch.length,
-                                  padding:
-                                      const EdgeInsets.symmetric(vertical: 20),
-                                  itemBuilder: (_, index) {
-                                    final Song song = songSearch[index];
-
-                                    return InkWell(
-                                      onTap: () {
-                                        _audioPlayerManager.setInitialPlaylist(
-                                            songSearch, false, index);
-                                        _audioPlayerManager
-                                            .isPlayOrNotPlayNotifier
-                                            .value = true;
-
-                                        _audioPlayerManager.playMusic(index);
-                                        _audioPlayerManager
-                                            .indexCurrentSongNotifier
-                                            .value = index;
-                                        Route route = _createRoute(
-                                          MusicPlayer(
-                                            appManager: _appManager,
-                                            audioPlayerManager:
-                                                _audioPlayerManager,
-                                          ),
-                                        );
-
-                                        Navigator.push(context, route);
-                                      },
-                                      child: Row(
-                                        mainAxisAlignment:
-                                            MainAxisAlignment.spaceEvenly,
-                                        children: [
-                                          SizedBox(
-                                            height: 70,
-                                            width: 70,
-                                            child: ClipRRect(
-                                              borderRadius:
-                                                  BorderRadius.circular(10),
-                                              child: FadeInImage(
-                                                image: song.artworks![0],
-                                                fadeInDuration:
-                                                    const Duration(seconds: 1),
-                                                placeholder: MemoryImage(
-                                                    kTransparentImage),
-                                                fit: BoxFit.cover,
-                                              ),
-                                            ),
-                                          ),
-                                          const SizedBox(width: 10),
-                                          Flexible(
-                                            child: Column(
-                                              children: [
-                                                Align(
-                                                  alignment: Alignment.topLeft,
-                                                  child: Text(
-                                                    song.title!,
-                                                    maxLines: 2,
-                                                    softWrap: true,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    style: themeData
-                                                        .textTheme.bodyMedium,
-                                                  ),
-                                                ),
-                                                const SizedBox(
-                                                  height: 10,
-                                                ),
-                                                Align(
-                                                  alignment:
-                                                      Alignment.centerLeft,
-                                                  child: Text(
-                                                    song.artist ?? "Unknown",
-                                                    maxLines: 1,
-                                                    softWrap: true,
-                                                    overflow:
-                                                        TextOverflow.ellipsis,
-                                                    style: const TextStyle(
-                                                      fontSize: 14.0,
-                                                    ),
-                                                  ),
-                                                ),
-                                              ],
-                                            ),
-                                          )
-                                        ],
-                                      ),
-                                    );
-                                  }),
-                              AlbumSong(
-                                songRepository: _songRepository,
-                                audioPlayer: _audioPlayerManager,
-                              )
-                            ],
-                          );
-                        },
-                      ),
+                      MyMusicList(
+                        songRepository: _songRepository,
+                        audioPlayerManager: _audioPlayerManager,
+                        appManager: _appManager,
+                        carouselController: _carouselController,
+                        listRadio: _listRadio,
+                        songSearch: songSearch,
+                        userManager: _userManager,
+                      )
                     ],
                   );
                 },
@@ -381,23 +278,188 @@ class _MusicContainState extends State<MusicContain> {
       ),
     );
   }
+}
 
-  Route _createRoute(Widget widget) {
-    return PageRouteBuilder(
-      pageBuilder: (context, animation, secondaryAnimation) => widget,
-      transitionDuration: const Duration(milliseconds: 1000),
-      reverseTransitionDuration: const Duration(milliseconds: 500),
-      transitionsBuilder: (context, animation, secondaryAnimation, child) {
-        var begin = const Offset(0.0, -1.0);
-        var end = Offset.zero;
-        var tween = Tween(begin: begin, end: end);
-        var offsetAnimation = animation.drive(tween);
+class MyMusicList extends StatefulWidget {
+  final SongRepository songRepository;
+  final AudioPlayerManager audioPlayerManager;
+  final AppManager appManager;
+  final UserManager userManager;
+  final CarouselController carouselController;
+  final List<RadioModel> listRadio;
+  final List<Song> songSearch;
 
-        return SlideTransition(
-          position: offsetAnimation,
-          child: child,
+  const MyMusicList({
+    Key? key,
+    required this.songRepository,
+    required this.audioPlayerManager,
+    required this.appManager,
+    required this.carouselController,
+    required this.listRadio,
+    required this.songSearch,
+    required this.userManager,
+  }) : super(key: key);
+
+  @override
+  State<MyMusicList> createState() => _MyMusicListState();
+}
+
+class _MyMusicListState extends State<MyMusicList>
+    with AutomaticKeepAliveClientMixin {
+  SongRepository get _songRepository => widget.songRepository;
+
+  AudioPlayerManager get _audioPlayerManager => widget.audioPlayerManager;
+
+  AppManager get _appManager => widget.appManager;
+
+  UserManager get _userManager => widget.userManager;
+
+  CarouselController get _carouselController => widget.carouselController;
+
+  List<RadioModel> get _listRadio => widget.listRadio;
+
+  List<Song> get songSearch => widget.songSearch;
+
+  @override
+  Widget build(BuildContext context) {
+    super.build(context);
+    final ThemeData themeData = Theme.of(context);
+
+    return ValueListenableBuilder(
+      valueListenable: _audioPlayerManager.isPlayOrNotPlayNotifier,
+      builder: (_, valuePlay, __) {
+        return CarouselSlider(
+          carouselController: _carouselController,
+          options: CarouselOptions(
+            height: valuePlay
+                ? _appManager.getHeightPlay() - 150
+                : _appManager.getHeightNoPlay() - 150,
+            initialPage: 0,
+            viewportFraction: 1,
+            padEnds: false,
+            enableInfiniteScroll: false,
+            onPageChanged: (index, __) {
+              setState(() {
+                for (var element in _listRadio) {
+                  element.isSelected = false;
+                }
+                _listRadio[index].isSelected = true;
+              });
+            },
+          ),
+          items: [
+            ListView.separated(
+                separatorBuilder: (_, __) {
+                  return Divider(
+                    thickness: 2,
+                    color: themeData.colorScheme.onPrimary.withAlpha(10),
+                  );
+                },
+                itemCount: songSearch.length,
+                padding: const EdgeInsets.symmetric(vertical: 20),
+                itemBuilder: (_, index) {
+                  final Song song = songSearch[index];
+
+                  return InkWell(
+                    onTap: () {
+                      _audioPlayerManager.currentSongNotifier.value = song;
+                      if (_appManager.keyEqualPage.value.value != "U_OFFLINE") {
+                        _audioPlayerManager.isPlayOnOffline.value = false;
+                        _audioPlayerManager.setInitialPlaylist(
+                          songSearch,
+                          index,
+                        );
+                        _appManager.keyEqualPage.value =
+                            const ValueKey<String>("U_OFFLINE");
+                      }
+
+                      Song songCurrent = songSearch[index];
+                      Song songOld =
+                          _audioPlayerManager.currentSongNotifier.value;
+                      if (songCurrent.id != songOld.id) {
+                        _audioPlayerManager.playMusic(index);
+                        _audioPlayerManager.currentSongNotifier.value =
+                            songCurrent;
+                      } else {
+                        if (_audioPlayerManager.playButtonNotifier.value ==
+                            ButtonState.paused) {
+                          _audioPlayerManager.play();
+                        }
+                      }
+
+                      Route route = _appManager.createRouteUpDown(
+                        MusicPlayer(
+                          userManager: _userManager,
+                          appManager: _appManager,
+                          songRepository: _songRepository,
+                          audioPlayerManager: _audioPlayerManager,
+                        ),
+                      );
+                      Navigator.push(context, route);
+                    },
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+                      children: [
+                        SizedBox(
+                          height: 70,
+                          width: 70,
+                          child: ClipRRect(
+                            borderRadius: BorderRadius.circular(10),
+                            child: FadeInImage(
+                              image: song.artworks![0],
+                              fadeInDuration: const Duration(seconds: 1),
+                              placeholder: MemoryImage(kTransparentImage),
+                              fit: BoxFit.cover,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(width: 10),
+                        Flexible(
+                          child: Column(
+                            children: [
+                              Align(
+                                alignment: Alignment.topLeft,
+                                child: Text(
+                                  song.title!,
+                                  maxLines: 2,
+                                  softWrap: true,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: themeData.textTheme.bodyMedium,
+                                ),
+                              ),
+                              const SizedBox(
+                                height: 10,
+                              ),
+                              Align(
+                                alignment: Alignment.centerLeft,
+                                child: Text(
+                                  song.artist ?? "Unknown",
+                                  maxLines: 1,
+                                  softWrap: true,
+                                  overflow: TextOverflow.ellipsis,
+                                  style: const TextStyle(
+                                    fontSize: 14.0,
+                                  ),
+                                ),
+                              ),
+                            ],
+                          ),
+                        )
+                      ],
+                    ),
+                  );
+                }),
+            AlbumSong(
+              songRepository: _songRepository,
+              audioPlayer: _audioPlayerManager,
+            )
+          ],
         );
       },
     );
   }
+
+  @override
+  // TODO: implement wantKeepAlive
+  bool get wantKeepAlive => true;
 }

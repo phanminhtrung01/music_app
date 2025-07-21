@@ -57,6 +57,7 @@ class AudioProgressBar extends StatelessWidget {
           thumbColor: map['thumbColor'],
           //black87
           thumbGlowColor: map['thumbGlowColor'],
+          timeLabelLocation: map['timeLabelLocation'],
           timeLabelTextStyle: map['timeLabelTextStyle'],
           onDragUpdate: (value) {
             valueProgressBarNotifier.value = value.timeStamp;
